@@ -727,18 +727,28 @@ app.get('/api/municipios', async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor', error: error.message });
   }
 });
-// Ruta protegida de perfil
-app.get('/api/perfil', authMiddleware, (req, res) => {
-  res.json({
-    message: 'Perfil consultado con éxito',
-    usuario: req.user
-  });
+// Consultar el perfil propio
+app.get('/api/perfil', authMiddleware, async (req, res) => {
+  try {
+    const [usuarios] = await db.query(
+      'SELECT id_usuario, nombre, email, rol, foto_perfil FROM usuarios WHERE id_usuario = ?',
+      [req.user.id]
+    );
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.json({ usuario: usuarios[0] });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al consultar el perfil', error: error.message });
+  }
 });
 // Editar el perfil propio
 app.put('/api/perfil', authMiddleware, async (req, res) => {
   try {
     const id_usuario = req.user.id;
-    const { nombre, email, password } = req.body;
+    const { nombre, email, password, foto_perfil } = req.body;
 
     if (!nombre || !email) {
       return res.status(400).json({ message: 'Nombre y correo son obligatorios.' });
@@ -759,20 +769,20 @@ app.put('/api/perfil', authMiddleware, async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, salt);
 
       await db.query(
-        'UPDATE usuarios SET nombre = ?, email = ?, password_hash = ? WHERE id_usuario = ?',
-        [nombre, email, hashedPassword, id_usuario]
+        'UPDATE usuarios SET nombre = ?, email = ?, password_hash = ?, foto_perfil = ? WHERE id_usuario = ?',
+        [nombre, email, hashedPassword, foto_perfil || null, id_usuario]
       );
     } else {
       // Solo actualizar nombre y correo
       await db.query(
-        'UPDATE usuarios SET nombre = ?, email = ? WHERE id_usuario = ?',
-        [nombre, email, id_usuario]
+        'UPDATE usuarios SET nombre = ?, email = ?, foto_perfil = ? WHERE id_usuario = ?',
+        [nombre, email, foto_perfil || null, id_usuario]
       );
     }
 
     res.status(200).json({
       message: 'Perfil actualizado con éxito',
-      usuario: { id: id_usuario, nombre, email }
+      usuario: { id: id_usuario, nombre, email, foto_perfil: foto_perfil || null }
     });
   } catch (error) {
     res.status(500).json({ message: 'Error en el servidor', error: error.message });
