@@ -4,20 +4,9 @@ import { useAuth } from '../context/AuthContext';
 
 const API_URL = 'http://localhost:3000/api';
 
-// Decodifica el payload de un JWT sin verificar la firma (solo para leer datos, no para seguridad)
-function decodificarToken(token) {
-  try {
-    const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
-  } catch {
-    return null;
-  }
-}
-
 function LocalDetalle() {
   const { id } = useParams();
-  const { token, isAuthenticated } = useAuth();
-  const usuarioActual = token ? decodificarToken(token) : null;
+  const { token, isAuthenticated, usuario: usuarioActual } = useAuth();
 
   const [local, setLocal] = useState(null);
   const [calificaciones, setCalificaciones] = useState([]);
