@@ -40,6 +40,14 @@ function LocalDetalle() {
   const [enviandoPlan, setEnviandoPlan] = useState(false);
   const [errorPlan, setErrorPlan] = useState('');
   const [exitoPlan, setExitoPlan] = useState('');
+  const [planEditando, setPlanEditando] = useState(null);
+  const [tituloEditado, setTituloEditado] = useState('');
+  const [descripcionEditada, setDescripcionEditada] = useState('');
+  const [fechaInicioEditada, setFechaInicioEditada] = useState('');
+  const [fechaFinEditada, setFechaFinEditada] = useState('');
+  const [imagenEditadaFile, setImagenEditadaFile] = useState(null);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [errorEdicion, setErrorEdicion] = useState('');
 
   const cargarDatos = () => {
     setCargando(true);
@@ -169,11 +177,117 @@ function LocalDetalle() {
     }
   };
 
+  const iniciarEdicionPlan = (plan) => {
+    setPlanEditando(plan.id_plan);
+    setTituloEditado(plan.titulo || '');
+    setDescripcionEditada(plan.descripcion || '');
+    setFechaInicioEditada((plan.fecha_inicio || '').slice(0, 10));
+    setFechaFinEditada((plan.fecha_fin || '').slice(0, 10));
+    setImagenEditadaFile(null);
+    setErrorEdicion('');
+  };
+
+  const cancelarEdicionPlan = () => {
+    setPlanEditando(null);
+    setImagenEditadaFile(null);
+    setErrorEdicion('');
+  };
+
+  const guardarEdicionPlan = async (e, plan) => {
+    e.preventDefault();
+    setErrorEdicion('');
+
+    if (!tituloEditado || !fechaInicioEditada || !fechaFinEditada) {
+      setErrorEdicion('El título y las fechas son obligatorios.');
+      return;
+    }
+
+    setGuardandoEdicion(true);
+
+    try {
+      let imagen_url = plan.imagen_url;
+
+      if (imagenEditadaFile) {
+        const formData = new FormData();
+        formData.append('imagen', imagenEditadaFile);
+
+        const uploadRes = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.message || 'Error al subir la imagen.');
+        }
+
+        imagen_url = uploadData.imagen_url;
+      }
+
+      const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          titulo: tituloEditado,
+          descripcion: descripcionEditada,
+          precio: plan.precio || null,
+          fecha_inicio: fechaInicioEditada,
+          fecha_fin: fechaFinEditada,
+          imagen_url,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Error al actualizar la promoción o evento.');
+      }
+
+      cancelarEdicionPlan();
+      setExitoPlan('Promoción/evento actualizado correctamente.');
+      cargarDatos();
+    } catch (err) {
+      setErrorEdicion(err.message);
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  };
+
+  const eliminarPlan = async (plan) => {
+    const confirmar = window.confirm(`¿Eliminar "${plan.titulo}"? Esta acción no se puede deshacer.`);
+    if (!confirmar) return;
+
+    try {
+      const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Error al eliminar la promoción o evento.');
+      }
+
+      if (planEditando === plan.id_plan) {
+        cancelarEdicionPlan();
+      }
+      setExitoPlan('Promoción/evento eliminado correctamente.');
+      cargarDatos();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   if (cargando) return <p style={{ padding: '20px' }}>Cargando...</p>;
   if (error) return <p style={{ padding: '20px', color: 'red' }}>{error}</p>;
   if (!local) return <p style={{ padding: '20px' }}>Local no encontrado.</p>;
 
-  const esDueno = usuarioActual && local.id_usuario === usuarioActual.id;
+  const puedeGestionarPlanes = usuarioActual && (
+    local.id_usuario === usuarioActual.id || usuarioActual.rol === 'admin'
+  );
 
   return (
     <div style={{ maxWidth: '700px', margin: '30px auto', fontFamily: 'sans-serif', padding: '0 15px' }}>
@@ -211,23 +325,53 @@ function LocalDetalle() {
       ) : (
         planes.map((plan) => (
           <div key={plan.id_plan} style={{ border: '1px solid #eee', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-            {plan.imagen_url && (
-              <img
-                src={plan.imagen_url}
-                alt={plan.titulo}
-                style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '6px', marginBottom: '10px' }}
-              />
+            {planEditando === plan.id_plan ? (
+              <form onSubmit={(e) => guardarEdicionPlan(e, plan)}>
+                <h3 style={{ marginTop: 0 }}>Editar promoción o evento</h3>
+                {errorEdicion && <p style={{ color: 'red' }}>{errorEdicion}</p>}
+                <input value={tituloEditado} onChange={(e) => setTituloEditado(e.target.value)} placeholder="Título" style={{ width: '100%', padding: '8px', marginBottom: '8px' }} />
+                <textarea value={descripcionEditada} onChange={(e) => setDescripcionEditada(e.target.value)} placeholder="Descripción" style={{ width: '100%', padding: '8px', minHeight: '60px', marginBottom: '8px' }} />
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                  <input type="date" value={fechaInicioEditada} onChange={(e) => setFechaInicioEditada(e.target.value)} style={{ flex: 1, padding: '8px' }} />
+                  <input type="date" value={fechaFinEditada} onChange={(e) => setFechaFinEditada(e.target.value)} style={{ flex: 1, padding: '8px' }} />
+                </div>
+                <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => setImagenEditadaFile(e.target.files[0])} style={{ marginBottom: '10px' }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" disabled={guardandoEdicion}>{guardandoEdicion ? 'Guardando...' : 'Guardar cambios'}</button>
+                  <button type="button" onClick={cancelarEdicionPlan}>Cancelar</button>
+                </div>
+              </form>
+            ) : (
+              <>
+                {plan.imagen_url && (
+                  <img
+                    src={plan.imagen_url}
+                    alt={plan.titulo}
+                    style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '6px', marginBottom: '10px' }}
+                  />
+                )}
+                <h3 style={{ margin: '0 0 5px 0' }}>{plan.titulo}</h3>
+                {plan.descripcion && <p style={{ margin: '0 0 5px 0' }}>{plan.descripcion}</p>}
+                <p style={{ margin: 0, fontSize: '13px', color: '#888' }}>
+                  Vigente del {new Date(plan.fecha_inicio).toLocaleDateString('es-CO')} al {new Date(plan.fecha_fin).toLocaleDateString('es-CO')}
+                </p>
+                {puedeGestionarPlanes && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                    <button type="button" onClick={() => iniciarEdicionPlan(plan)}>
+                      Editar
+                    </button>
+                    <button type="button" onClick={() => eliminarPlan(plan)} style={{ color: '#b00020' }}>
+                      Eliminar
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-            <h3 style={{ margin: '0 0 5px 0' }}>{plan.titulo}</h3>
-            {plan.descripcion && <p style={{ margin: '0 0 5px 0' }}>{plan.descripcion}</p>}
-            <p style={{ margin: 0, fontSize: '13px', color: '#888' }}>
-              Vigente del {new Date(plan.fecha_inicio).toLocaleDateString('es-CO')} al {new Date(plan.fecha_fin).toLocaleDateString('es-CO')}
-            </p>
           </div>
         ))
       )}
 
-      {esDueno && (
+      {puedeGestionarPlanes && (
         <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #aaa', borderRadius: '8px' }}>
           <h3 style={{ marginTop: 0 }}>Crear nueva promoción o evento</h3>
 
