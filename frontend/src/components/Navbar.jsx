@@ -43,6 +43,11 @@ function Navbar() {
             Crear local
           </Link>
         )}
+        {isAuthenticated && (
+          <Link to="/perfil" style={{ color: 'white', textDecoration: 'none' }}>
+            Mi perfil
+          </Link>
+        )}
         
         
 

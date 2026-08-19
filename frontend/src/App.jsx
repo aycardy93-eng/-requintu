@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Locales from './pages/Locales';
 import CrearLocal from './pages/CrearLocal';
 import LocalDetalle from './pages/LocalDetalle';
+import Perfil from './pages/Perfil';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -19,6 +20,14 @@ function App() {
         <Route path="/publicaciones" element={<Publicaciones />} />
         <Route path="/locales" element={<Locales />} />
         <Route path="/locales/:id" element={<LocalDetalle />} />
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <Perfil />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/crear-local"
           element={
