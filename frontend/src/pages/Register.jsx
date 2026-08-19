@@ -1,0 +1,109 @@
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+
+const API_URL = 'http://localhost:3000/api';
+
+function Register() {
+  const [nombre, setNombre] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rol, setRol] = useState('turista');
+  const [mensaje, setMensaje] = useState('');
+  const [cargando, setCargando] = useState(false);
+  const navigate = useNavigate();
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setMensaje('');
+    setCargando(true);
+
+    try {
+      const respuesta = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, email, password, rol })
+      });
+
+      const datos = await respuesta.json();
+
+      if (!respuesta.ok) {
+        setMensaje(datos.message || 'Error al registrarse');
+        setCargando(false);
+        return;
+      }
+
+      setMensaje('¡Cuenta creada con éxito! Redirigiendo al login...');
+      setTimeout(() => navigate('/login'), 1500);
+    } catch (error) {
+      setMensaje('No se pudo conectar con el servidor.');
+      console.error(error);
+      setCargando(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: '400px', margin: '50px auto', fontFamily: 'sans-serif' }}>
+      <h1>Requintu - Crear cuenta</h1>
+
+      <form onSubmit={handleRegister}>
+        <div style={{ marginBottom: '15px' }}>
+          <label>Nombre:</label><br />
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            required
+            style={{ width: '100%', padding: '8px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label>Correo:</label><br />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{ width: '100%', padding: '8px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label>Contraseña:</label><br />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            style={{ width: '100%', padding: '8px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label>Tipo de cuenta:</label><br />
+          <select
+            value={rol}
+            onChange={(e) => setRol(e.target.value)}
+            style={{ width: '100%', padding: '8px' }}
+          >
+            <option value="turista">Turista</option>
+            <option value="comerciante">Comerciante</option>
+          </select>
+        </div>
+
+        <button type="submit" disabled={cargando} style={{ padding: '10px 20px' }}>
+          {cargando ? 'Creando cuenta...' : 'Registrarme'}
+        </button>
+      </form>
+
+      {mensaje && <p style={{ marginTop: '20px' }}>{mensaje}</p>}
+
+      <p style={{ marginTop: '20px' }}>
+        ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
+      </p>
+    </div>
+  );
+}
+
+export default Register;
