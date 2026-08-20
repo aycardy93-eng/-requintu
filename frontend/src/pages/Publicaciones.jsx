@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch, encabezadosAuth, subirImagen } from '../lib/api';
 
 function Publicaciones() {
   const { token, isAuthenticated, usuario: usuarioActual } = useAuth();
@@ -28,42 +27,17 @@ function Publicaciones() {
     setCargando(true);
     setError('');
 
-    fetch(`${API_URL}/publicaciones`)
-      .then((res) => res.json())
-      .then((data) => {
-        setPublicaciones(data.publicaciones || []);
-        setCargando(false);
-      })
-      .catch(() => {
-        setError('No se pudo conectar con el servidor.');
-        setCargando(false);
-      });
+    apiFetch('/publicaciones')
+      .then((data) => setPublicaciones(data.publicaciones || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setCargando(false));
   };
 
   useEffect(() => {
     cargarPublicaciones();
   }, []);
 
-  const subirImagenSiHay = async (file) => {
-    if (!file) return null;
-
-    const formData = new FormData();
-    formData.append('imagen', file);
-
-    const uploadRes = await fetch(`${API_URL}/upload`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-
-    const uploadData = await uploadRes.json();
-
-    if (!uploadRes.ok) {
-      throw new Error(uploadData.message || 'Error al subir la imagen.');
-    }
-
-    return uploadData.imagen_url;
-  };
+  const subirImagenSiHay = async (file) => (file ? subirImagen(file, token) : null);
 
   const handleCrear = async (e) => {
     e.preventDefault();
@@ -79,20 +53,11 @@ function Publicaciones() {
     try {
       const imagen_url = await subirImagenSiHay(imagenNuevaFile);
 
-      const res = await fetch(`${API_URL}/publicaciones`, {
+      await apiFetch('/publicaciones', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: encabezadosAuth(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({ contenido: contenidoNuevo, imagen_url }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al crear la publicación.');
-      }
 
       setContenidoNuevo('');
       setImagenNuevaFile(null);
@@ -134,20 +99,11 @@ function Publicaciones() {
         ? await subirImagenSiHay(imagenEditFile)
         : pub.imagen_url;
 
-      const res = await fetch(`${API_URL}/publicaciones/${pub.id}`, {
+      await apiFetch(`/publicaciones/${pub.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: encabezadosAuth(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({ contenido: contenidoEdit, imagen_url: nuevaImagenUrl }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al actualizar la publicación.');
-      }
 
       handleCancelarEdicion();
       cargarPublicaciones();
@@ -163,20 +119,14 @@ function Publicaciones() {
     if (!confirmar) return;
 
     try {
-      const res = await fetch(`${API_URL}/publicaciones/${id}`, {
+      await apiFetch(`/publicaciones/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: encabezadosAuth(token),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al eliminar la publicación.');
-      }
 
       cargarPublicaciones();
     } catch (err) {
-      alert(err.message);
+      setError(err.message);
     }
   };
 

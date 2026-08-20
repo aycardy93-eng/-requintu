@@ -15,6 +15,7 @@ export const authenticateToken = (req, res, next) => {
     req.user = verified;
     next();
   } catch (error) {
+    console.warn(`[auth] token rechazado en ${req.method} ${req.originalUrl}: ${error.message}`);
     res.status(403).json({ message: 'Token inválido o expirado' });
   }
 };

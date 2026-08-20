@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch, encabezadosAuth, subirImagen } from '../lib/api';
 
 function Perfil() {
   const { token } = useAuth();
@@ -19,13 +18,10 @@ function Perfil() {
   useEffect(() => {
     const cargarPerfil = async () => {
       try {
-        const res = await fetch(`${API_URL}/perfil`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const data = await apiFetch('/perfil', { headers: encabezadosAuth(token) });
 
-        if (!res.ok) {
-          throw new Error(data.message || 'No se pudo cargar el perfil.');
+        if (!data.usuario) {
+          throw new Error('La respuesta del servidor no incluyó el perfil.');
         }
 
         setNombre(data.usuario.nombre || '');
@@ -69,39 +65,15 @@ function Perfil() {
     setGuardando(true);
 
     try {
-      let foto_perfil = fotoPerfil;
+      const foto_perfil = fotoPerfilFile
+        ? await subirImagen(fotoPerfilFile, token)
+        : fotoPerfil;
 
-      if (fotoPerfilFile) {
-        const formData = new FormData();
-        formData.append('imagen', fotoPerfilFile);
-
-        const uploadRes = await fetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'No se pudo subir la foto.');
-        }
-
-        foto_perfil = uploadData.imagen_url;
-      }
-
-      const res = await fetch(`${API_URL}/perfil`, {
+      const data = await apiFetch('/perfil', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: encabezadosAuth(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({ nombre: nombre.trim(), email: email.trim(), password, foto_perfil }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'No se pudo actualizar el perfil.');
-      }
 
       setNombre(data.usuario.nombre);
       setEmail(data.usuario.email);

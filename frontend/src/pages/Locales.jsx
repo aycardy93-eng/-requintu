@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch } from '../lib/api';
 
 function Locales() {
   const [locales, setLocales] = useState([]);
@@ -15,15 +14,13 @@ function Locales() {
 
   // Cargar categorías y municipios una sola vez
   useEffect(() => {
-    fetch(`${API_URL}/categorias`)
-      .then((res) => res.json())
+    apiFetch('/categorias')
       .then((data) => setCategorias(data.categorias || []))
-      .catch(() => {});
+      .catch((err) => setError(err.message));
 
-    fetch(`${API_URL}/municipios`)
-      .then((res) => res.json())
+    apiFetch('/municipios')
       .then((data) => setMunicipios(data.municipios || []))
-      .catch(() => {});
+      .catch((err) => setError(err.message));
   }, []);
 
   // Cargar locales cada vez que cambian los filtros
@@ -36,16 +33,10 @@ function Locales() {
     setCargando(true);
     setError('');
 
-    fetch(`${API_URL}/locales?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setLocales(data.locales || []);
-        setCargando(false);
-      })
-      .catch(() => {
-        setError('No se pudo conectar con el servidor.');
-        setCargando(false);
-      });
+    apiFetch(`/locales?${params.toString()}`)
+      .then((data) => setLocales(data.locales || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setCargando(false));
   }, [buscar, categoria, municipio]);
 
   return (

@@ -6,15 +6,43 @@ import dotenv from 'dotenv';
 import db from './db.js';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro_123';
+const EN_PRODUCCION = process.env.NODE_ENV === 'production';
+
+if (!process.env.JWT_SECRET) {
+  const aviso = 'JWT_SECRET no está definido: se usará un secreto por defecto inseguro.';
+  if (EN_PRODUCCION) {
+    console.error(`[config] ${aviso}`);
+    process.exit(1);
+  }
+  console.warn(`[config] ${aviso}`);
+}
+
+// Registra el error completo en el servidor y responde sin filtrar detalles internos en producción.
+const manejarErrorServidor = (res, error, contexto) => {
+  console.error(`[error] ${contexto}:`, error);
+
+  if (res.headersSent) {
+    return;
+  }
+
+  res.status(500).json({
+    message: 'Error en el servidor',
+    ...(EN_PRODUCCION ? {} : { error: error?.message })
+  });
+};
 
 const app = express();
 const PORT = 3000;
+const DIRECTORIO_UPLOADS = 'uploads';
+
+fs.mkdirSync(DIRECTORIO_UPLOADS, { recursive: true });
 // Configuración de multer para subir imágenes
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, DIRECTORIO_UPLOADS);
   },
   filename: (req, file, cb) => {
     const nombreUnico = Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname);
@@ -32,7 +60,9 @@ const upload = multer({
     if (extensionValida && mimeValido) {
       cb(null, true);
     } else {
-      cb(new Error('Solo se permiten imágenes JPG, PNG o WEBP'));
+      const error = new Error('Solo se permiten imágenes JPG, PNG o WEBP');
+      error.esErrorDeValidacion = true;
+      cb(error);
     }
   }
 });
@@ -41,7 +71,7 @@ const upload = multer({
 app.use(cors());
 app.use(express.json());
 // Servir las imágenes de forma pública
-app.use('/uploads', express.static('uploads'));
+app.use(`/${DIRECTORIO_UPLOADS}`, express.static(DIRECTORIO_UPLOADS));
 
 
 
@@ -72,13 +102,13 @@ app.post('/api/login', async (req, res) => {
     // 4. Generar el Token con los datos del usuario
     const token = jwt.sign(
       { id: user.id_usuario, email: user.email, rol: user.rol },
-      process.env.JWT_SECRET || 'secreto',
+      JWT_SECRET,
       { expiresIn: '8h' }
     );
 
     res.json({ message: 'Login exitoso', token });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/login');
   }
 });
 // 1. Declaración correcta de authMiddleware
@@ -90,8 +120,9 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ message: 'Token requerido' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'secreto', (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
+      console.warn(`[auth] token rechazado en ${req.method} ${req.originalUrl}: ${err.message}`);
       return res.status(403).json({ message: 'Token inválido' });
     }
     req.user = user;
@@ -123,7 +154,7 @@ app.post('/api/publicaciones', authMiddleware, async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/publicaciones');
   }
 });
 // Listar todas las publicaciones (con el nombre del autor)
@@ -139,7 +170,7 @@ app.get('/api/publicaciones', async (req, res) => {
 
     res.status(200).json({ publicaciones });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/publicaciones');
   }
 });
 
@@ -163,7 +194,7 @@ app.get('/api/publicaciones/:id', async (req, res) => {
 
     res.status(200).json({ publicacion: publicaciones[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/publicaciones/:id');
   }
 });
 
@@ -182,7 +213,7 @@ app.get('/api/usuarios/:id/publicaciones', async (req, res) => {
 
     res.status(200).json({ publicaciones });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/usuarios/:id/publicaciones');
   }
 });
 // Editar una publicación (solo el dueño puede editarla)
@@ -220,7 +251,7 @@ app.put('/api/publicaciones/:id', authMiddleware, async (req, res) => {
       publicacion: { id: Number(id), usuario_id, contenido, imagen_url: imagen_url || null }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'PUT /api/publicaciones/:id');
   }
 });
 
@@ -247,7 +278,7 @@ app.delete('/api/publicaciones/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Publicación eliminada con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'DELETE /api/publicaciones/:id');
   }
 });
 // 2. Ruta de publicaciones
@@ -284,7 +315,7 @@ app.post('/api/register', async (req, res) => {
       usuario: { id: result.insertId, nombre, email, rol: rol || 'turista' }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/register');
   }
 });
 // ==========================================
@@ -317,7 +348,7 @@ app.post('/api/locales', authMiddleware, async (req, res) => {
       local: { id: result.insertId, nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio, id_usuario }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/locales');
   }
 });
 
@@ -357,7 +388,7 @@ app.get('/api/locales', async (req, res) => {
 
     res.status(200).json({ total: locales.length, locales });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/locales');
   }
 });
 
@@ -382,7 +413,7 @@ app.get('/api/locales/:id', async (req, res) => {
 
     res.status(200).json({ local: locales[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/locales/:id');
   }
 });
 
@@ -415,7 +446,7 @@ app.put('/api/locales/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Local actualizado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'PUT /api/locales/:id');
   }
 });
 
@@ -441,7 +472,7 @@ app.delete('/api/locales/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Local eliminado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'DELETE /api/locales/:id');
   }
 });
 // ==========================================
@@ -484,7 +515,7 @@ app.post('/api/locales/:id_local/calificaciones', authMiddleware, async (req, re
       calificacion: { id: result.insertId, id_local, id_usuario, puntuacion, comentario: comentario || null }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/locales/:id_local/calificaciones');
   }
 });
 
@@ -510,7 +541,7 @@ app.get('/api/locales/:id_local/calificaciones', async (req, res) => {
 
     res.status(200).json({ promedio, total: calificaciones.length, calificaciones });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/locales/:id_local/calificaciones');
   }
 });
 
@@ -541,7 +572,7 @@ app.put('/api/calificaciones/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Calificación actualizada con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'PUT /api/calificaciones/:id');
   }
 });
 
@@ -564,7 +595,7 @@ app.delete('/api/calificaciones/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Calificación eliminada con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'DELETE /api/calificaciones/:id');
   }
 });
 // ==========================================
@@ -608,7 +639,7 @@ app.post('/api/locales/:id_local/planes', authMiddleware, async (req, res) => {
       plan: { id: result.insertId, id_local, titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/locales/:id_local/planes');
   }
 });
 
@@ -627,7 +658,7 @@ app.get('/api/locales/:id_local/planes', async (req, res) => {
 
     res.status(200).json({ planes });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/locales/:id_local/planes');
   }
 });
 
@@ -671,7 +702,7 @@ app.put('/api/planes/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Plan actualizado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'PUT /api/planes/:id');
   }
 });
 
@@ -701,7 +732,7 @@ app.delete('/api/planes/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Plan eliminado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'DELETE /api/planes/:id');
   }
 });
 // ==========================================
@@ -714,7 +745,7 @@ app.get('/api/categorias', async (req, res) => {
     const [categorias] = await db.query('SELECT * FROM categorias ORDER BY nombre ASC');
     res.status(200).json({ categorias });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/categorias');
   }
 });
 
@@ -724,7 +755,7 @@ app.get('/api/municipios', async (req, res) => {
     const [municipios] = await db.query('SELECT * FROM municipios ORDER BY nombre ASC');
     res.status(200).json({ municipios });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/municipios');
   }
 });
 // Consultar el perfil propio
@@ -741,7 +772,7 @@ app.get('/api/perfil', authMiddleware, async (req, res) => {
 
     res.json({ usuario: usuarios[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Error al consultar el perfil', error: error.message });
+    manejarErrorServidor(res, error, 'GET /api/perfil');
   }
 });
 // Editar el perfil propio
@@ -785,7 +816,7 @@ app.put('/api/perfil', authMiddleware, async (req, res) => {
       usuario: { id: id_usuario, nombre, email, foto_perfil: foto_perfil || null }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'PUT /api/perfil');
   }
 });
 // ==========================================
@@ -813,11 +844,14 @@ app.post('/api/forgot-password', async (req, res) => {
     // Expira en 15 minutos
     const expira = new Date(Date.now() + 15 * 60 * 1000);
 
-   const [updateResult] = await db.query(
-  'UPDATE usuarios SET reset_token = ?, reset_token_expira = ? WHERE email = ?',
-  [codigo, expira, email]
-);
-console.log('Resultado del UPDATE:', updateResult);
+    const [updateResult] = await db.query(
+      'UPDATE usuarios SET reset_token = ?, reset_token_expira = ? WHERE email = ?',
+      [codigo, expira, email]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      throw new Error(`No se pudo guardar el código de recuperación para ${email}`);
+    }
 
     // Simulación del envío de correo
     console.log('========================================');
@@ -827,7 +861,7 @@ console.log('Resultado del UPDATE:', updateResult);
 
     res.status(200).json({ message: 'Se generó un código de recuperación. Revisa la consola del servidor (simulación de correo).' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/forgot-password');
   }
 });
 
@@ -867,7 +901,7 @@ if (user.reset_token !== codigo) {
 
     res.status(200).json({ message: 'Contraseña actualizada con éxito. Ya puedes iniciar sesión con tu nueva clave.' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    manejarErrorServidor(res, error, 'POST /api/reset-password');
   }
 });
 // ==========================================
@@ -877,19 +911,42 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No se envió ninguna imagen.' });
   }
-  const imagen_url = `http://localhost:3000/uploads/${req.file.filename}`;
+  const imagen_url = `http://localhost:3000/${DIRECTORIO_UPLOADS}/${req.file.filename}`;
   res.status(200).json({ message: 'Imagen subida con éxito', imagen_url });
 });
 
-// Manejo de errores de multer (tipo de archivo inválido, tamaño excedido, etc.)
+// Ruta no encontrada: responde JSON en lugar del HTML por defecto de Express
+app.use((req, res) => {
+  res.status(404).json({ message: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
+});
+
+// Errores de multer (tipo de archivo inválido, tamaño excedido) y cualquier error no controlado
 app.use((err, req, res, next) => {
+  const contexto = `${req.method} ${req.originalUrl}`;
+
   if (err instanceof multer.MulterError) {
+    console.warn(`[upload] ${contexto}: ${err.code} - ${err.message}`);
     return res.status(400).json({ message: `Error al subir archivo: ${err.message}` });
-  } else if (err) {
+  }
+
+  if (err?.esErrorDeValidacion) {
+    console.warn(`[validacion] ${contexto}: ${err.message}`);
     return res.status(400).json({ message: err.message });
   }
-  next();
+
+  manejarErrorServidor(res, err, contexto);
 });
+
+// Un fallo asíncrono sin capturar no debe dejar el proceso en un estado indeterminado y silencioso
+process.on('unhandledRejection', (razon) => {
+  console.error('[proceso] promesa rechazada sin manejar:', razon);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[proceso] excepción no capturada:', error);
+  process.exit(1);
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en http://localhost:${PORT}`);

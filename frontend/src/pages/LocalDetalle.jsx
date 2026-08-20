@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch, encabezadosAuth, subirImagen } from '../lib/api';
 
 function LocalDetalle() {
   const { id } = useParams();
@@ -38,28 +37,26 @@ function LocalDetalle() {
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [errorEdicion, setErrorEdicion] = useState('');
 
-  const cargarDatos = () => {
+  const cargarDatos = async () => {
     setCargando(true);
     setError('');
 
-    fetch(`${API_URL}/locales/${id}`)
-      .then((res) => res.json())
-      .then((data) => setLocal(data.local || null))
-      .catch(() => setError('No se pudo cargar el local.'));
+    try {
+      const [datosLocal, datosCalificaciones, datosPlanes] = await Promise.all([
+        apiFetch(`/locales/${id}`),
+        apiFetch(`/locales/${id}/calificaciones`),
+        apiFetch(`/locales/${id}/planes`),
+      ]);
 
-    fetch(`${API_URL}/locales/${id}/calificaciones`)
-      .then((res) => res.json())
-      .then((data) => {
-        setCalificaciones(data.calificaciones || []);
-        setPromedio(data.promedio);
-        setCargando(false);
-      })
-      .catch(() => setCargando(false));
-
-    fetch(`${API_URL}/locales/${id}/planes`)
-      .then((res) => res.json())
-      .then((data) => setPlanes(data.planes || []))
-      .catch(() => setPlanes([]));
+      setLocal(datosLocal.local || null);
+      setCalificaciones(datosCalificaciones.calificaciones || []);
+      setPromedio(datosCalificaciones.promedio);
+      setPlanes(datosPlanes.planes || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
   };
 
   useEffect(() => {
@@ -72,20 +69,11 @@ function LocalDetalle() {
     setEnviando(true);
 
     try {
-      const res = await fetch(`${API_URL}/locales/${id}/calificaciones`, {
+      await apiFetch(`/locales/${id}/calificaciones`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: encabezadosAuth(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({ puntuacion: Number(puntuacion), comentario }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al enviar la calificación.');
-      }
 
       setComentario('');
       setPuntuacion(5);
@@ -110,33 +98,11 @@ function LocalDetalle() {
     setEnviandoPlan(true);
 
     try {
-      let imagen_url = null;
+      const imagen_url = imagenPlanFile ? await subirImagen(imagenPlanFile, token) : null;
 
-      if (imagenPlanFile) {
-        const formData = new FormData();
-        formData.append('imagen', imagenPlanFile);
-
-        const uploadRes = await fetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'Error al subir la imagen.');
-        }
-
-        imagen_url = uploadData.imagen_url;
-      }
-
-      const res = await fetch(`${API_URL}/locales/${id}/planes`, {
+      await apiFetch(`/locales/${id}/planes`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: encabezadosAuth(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           titulo: tituloPlan,
           descripcion: descripcionPlan,
@@ -145,12 +111,6 @@ function LocalDetalle() {
           imagen_url,
         }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al crear el plan.');
-      }
 
       setExitoPlan('¡Promoción/evento creado con éxito!');
       setTituloPlan('');
@@ -194,32 +154,13 @@ function LocalDetalle() {
     setGuardandoEdicion(true);
 
     try {
-      let imagen_url = plan.imagen_url;
+      const imagen_url = imagenEditadaFile
+        ? await subirImagen(imagenEditadaFile, token)
+        : plan.imagen_url;
 
-      if (imagenEditadaFile) {
-        const formData = new FormData();
-        formData.append('imagen', imagenEditadaFile);
-
-        const uploadRes = await fetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'Error al subir la imagen.');
-        }
-
-        imagen_url = uploadData.imagen_url;
-      }
-
-      const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
+      await apiFetch(`/planes/${plan.id_plan}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: encabezadosAuth(token, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           titulo: tituloEditado,
           descripcion: descripcionEditada,
@@ -229,11 +170,6 @@ function LocalDetalle() {
           imagen_url,
         }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al actualizar la promoción o evento.');
-      }
 
       cancelarEdicionPlan();
       setExitoPlan('Promoción/evento actualizado correctamente.');
@@ -250,15 +186,10 @@ function LocalDetalle() {
     if (!confirmar) return;
 
     try {
-      const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
+      await apiFetch(`/planes/${plan.id_plan}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: encabezadosAuth(token),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al eliminar la promoción o evento.');
-      }
 
       if (planEditando === plan.id_plan) {
         cancelarEdicionPlan();
@@ -266,7 +197,7 @@ function LocalDetalle() {
       setExitoPlan('Promoción/evento eliminado correctamente.');
       cargarDatos();
     } catch (err) {
-      alert(err.message);
+      setErrorPlan(err.message);
     }
   };
 
