@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 
-const AuthContext = createContext();
+// Línea 3 de src/context/AuthContext.jsx:
+export const AuthContext = createContext();
 
 // Lee el payload de un JWT en formato Base64URL. La seguridad real siempre se valida en el backend.
 function decodificarToken(token) {
