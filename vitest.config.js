@@ -4,10 +4,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['test/**/*.test.js'],
-  },
-  coverage: {
-    provider: 'v8',
-    reporter: ['text', 'lcov'],
-    include: ['index.js', 'authMiddleware.js', 'db.js'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['index.js', 'authMiddleware.js', 'db.js'],
+    },
   },
 });
