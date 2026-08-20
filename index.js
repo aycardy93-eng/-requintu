@@ -2,15 +2,31 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import crypto from 'crypto';
 import db from './db.js';
 import multer from 'multer';
 import path from 'path';
-dotenv.config();
-const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro_123';
+import { ALLOWED_ORIGINS, JWT_SECRET, PORT, PUBLIC_URL, ROLES_PERMITIDOS_EN_REGISTRO } from './config.js';
 
 const app = express();
-const PORT = 3000;
+
+// Responde con un mensaje genérico y registra el detalle solo en el servidor,
+// para no filtrar información interna (SQL, rutas, versiones) al cliente.
+const errorServidor = (res, error, contexto) => {
+  console.error(`[${contexto}]`, error);
+  return res.status(500).json({ message: 'Error en el servidor' });
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_MIN_LENGTH = 8;
+
+const esPuntuacionValida = (valor) => Number.isInteger(Number(valor)) && Number(valor) >= 1 && Number(valor) <= 5;
+
+const comparacionSegura = (a, b) => {
+  const bufferA = Buffer.from(String(a));
+  const bufferB = Buffer.from(String(b));
+  return bufferA.length === bufferB.length && crypto.timingSafeEqual(bufferA, bufferB);
+};
 // Configuración de multer para subir imágenes
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -38,8 +54,15 @@ const upload = multer({
 });
 
 // Middleware para procesar JSON en las peticiones
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      return cb(null, true);
+    }
+    return cb(new Error('Origen no autorizado por CORS'));
+  }
+}));
+app.use(express.json({ limit: '100kb' }));
 // Servir las imágenes de forma pública
 app.use('/uploads', express.static('uploads'));
 
@@ -52,12 +75,19 @@ app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Obtener el usuario desde MySQL
-     const [users] = await db.query('SELECT * FROM usuarios WHERE email = ?', [email]);
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ message: 'Correo y contraseña son obligatorios.' });
+    }
 
+    // 1. Obtener el usuario desde MySQL
+    const [users] = await db.query('SELECT * FROM usuarios WHERE email = ?', [email]);
+
+    // Mismo mensaje para usuario inexistente y contraseña incorrecta, para no
+    // permitir enumerar las cuentas registradas.
+    const credencialesInvalidas = () => res.status(401).json({ message: 'Correo o contraseña incorrectos' });
 
     if (users.length === 0) {
-      return res.status(401).json({ message: 'Usuario no encontrado' });
+      return credencialesInvalidas();
     }
 
     // 2. Definir 'user'
@@ -66,19 +96,19 @@ app.post('/api/login', async (req, res) => {
     // 3. Validar la contraseña con bcrypt
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return res.status(401).json({ message: 'Contraseña incorrecta' });
+      return credencialesInvalidas();
     }
 
     // 4. Generar el Token con los datos del usuario
     const token = jwt.sign(
       { id: user.id_usuario, email: user.email, rol: user.rol },
-      process.env.JWT_SECRET || 'secreto',
+      JWT_SECRET,
       { expiresIn: '8h' }
     );
 
     res.json({ message: 'Login exitoso', token });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, 'POST /api/login');
   }
 });
 // 1. Declaración correcta de authMiddleware
@@ -90,7 +120,7 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ message: 'Token requerido' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'secreto', (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ message: 'Token inválido' });
     }
@@ -123,7 +153,7 @@ app.post('/api/publicaciones', authMiddleware, async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // Listar todas las publicaciones (con el nombre del autor)
@@ -139,7 +169,7 @@ app.get('/api/publicaciones', async (req, res) => {
 
     res.status(200).json({ publicaciones });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -163,7 +193,7 @@ app.get('/api/publicaciones/:id', async (req, res) => {
 
     res.status(200).json({ publicacion: publicaciones[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -182,7 +212,7 @@ app.get('/api/usuarios/:id/publicaciones', async (req, res) => {
 
     res.status(200).json({ publicaciones });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // Editar una publicación (solo el dueño puede editarla)
@@ -220,7 +250,7 @@ app.put('/api/publicaciones/:id', authMiddleware, async (req, res) => {
       publicacion: { id: Number(id), usuario_id, contenido, imagen_url: imagen_url || null }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -247,7 +277,7 @@ app.delete('/api/publicaciones/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Publicación eliminada con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // 2. Ruta de publicaciones
@@ -257,6 +287,21 @@ app.post('/api/register', async (req, res) => {
 
     if (!nombre || !email || !password) {
       return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ message: 'El correo no tiene un formato válido.' });
+    }
+
+    if (typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH) {
+      return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
+    }
+
+    // El rol llega del cliente: solo se aceptan roles de autoservicio para que
+    // nadie pueda registrarse como 'admin'.
+    const rolSolicitado = rol || 'turista';
+    if (!ROLES_PERMITIDOS_EN_REGISTRO.includes(rolSolicitado)) {
+      return res.status(400).json({ message: 'Rol no válido.' });
     }
 
     // Verificar si el usuario ya existe
@@ -276,15 +321,15 @@ app.post('/api/register', async (req, res) => {
     // Insertar el nuevo usuario en la base de datos
     const [result] = await db.query(
       'INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)',
-      [nombre, email, hashedPassword, rol || 'turista']
+      [nombre, email, hashedPassword, rolSolicitado]
     );
 
     res.status(201).json({
       message: 'Usuario registrado con éxito',
-      usuario: { id: result.insertId, nombre, email, rol: rol || 'turista' }
+      usuario: { id: result.insertId, nombre, email, rol: rolSolicitado }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // ==========================================
@@ -317,7 +362,7 @@ app.post('/api/locales', authMiddleware, async (req, res) => {
       local: { id: result.insertId, nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio, id_usuario }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -357,7 +402,7 @@ app.get('/api/locales', async (req, res) => {
 
     res.status(200).json({ total: locales.length, locales });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -382,7 +427,7 @@ app.get('/api/locales/:id', async (req, res) => {
 
     res.status(200).json({ local: locales[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -415,7 +460,7 @@ app.put('/api/locales/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Local actualizado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -441,7 +486,7 @@ app.delete('/api/locales/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Local eliminado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // ==========================================
@@ -455,8 +500,8 @@ app.post('/api/locales/:id_local/calificaciones', authMiddleware, async (req, re
     const { puntuacion, comentario } = req.body;
     const id_usuario = req.user.id;
 
-    if (!puntuacion || puntuacion < 1 || puntuacion > 5) {
-      return res.status(400).json({ message: 'La puntuación debe ser un número entre 1 y 5.' });
+    if (!esPuntuacionValida(puntuacion)) {
+      return res.status(400).json({ message: 'La puntuación debe ser un número entero entre 1 y 5.' });
     }
 
     // Verificar que el local exista
@@ -484,7 +529,7 @@ app.post('/api/locales/:id_local/calificaciones', authMiddleware, async (req, re
       calificacion: { id: result.insertId, id_local, id_usuario, puntuacion, comentario: comentario || null }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -510,7 +555,7 @@ app.get('/api/locales/:id_local/calificaciones', async (req, res) => {
 
     res.status(200).json({ promedio, total: calificaciones.length, calificaciones });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -530,8 +575,8 @@ app.put('/api/calificaciones/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'No tienes permiso para editar esta calificación' });
     }
 
-    if (!puntuacion || puntuacion < 1 || puntuacion > 5) {
-      return res.status(400).json({ message: 'La puntuación debe ser un número entre 1 y 5.' });
+    if (!esPuntuacionValida(puntuacion)) {
+      return res.status(400).json({ message: 'La puntuación debe ser un número entero entre 1 y 5.' });
     }
 
     await db.query(
@@ -541,7 +586,7 @@ app.put('/api/calificaciones/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Calificación actualizada con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -564,7 +609,7 @@ app.delete('/api/calificaciones/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Calificación eliminada con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // ==========================================
@@ -608,7 +653,7 @@ app.post('/api/locales/:id_local/planes', authMiddleware, async (req, res) => {
       plan: { id: result.insertId, id_local, titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -627,7 +672,7 @@ app.get('/api/locales/:id_local/planes', async (req, res) => {
 
     res.status(200).json({ planes });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -671,7 +716,7 @@ app.put('/api/planes/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Plan actualizado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -701,7 +746,7 @@ app.delete('/api/planes/:id', authMiddleware, async (req, res) => {
 
     res.status(200).json({ message: 'Plan eliminado con éxito' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // ==========================================
@@ -714,7 +759,7 @@ app.get('/api/categorias', async (req, res) => {
     const [categorias] = await db.query('SELECT * FROM categorias ORDER BY nombre ASC');
     res.status(200).json({ categorias });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -724,7 +769,7 @@ app.get('/api/municipios', async (req, res) => {
     const [municipios] = await db.query('SELECT * FROM municipios ORDER BY nombre ASC');
     res.status(200).json({ municipios });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // Consultar el perfil propio
@@ -741,7 +786,7 @@ app.get('/api/perfil', authMiddleware, async (req, res) => {
 
     res.json({ usuario: usuarios[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Error al consultar el perfil', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // Editar el perfil propio
@@ -752,6 +797,14 @@ app.put('/api/perfil', authMiddleware, async (req, res) => {
 
     if (!nombre || !email) {
       return res.status(400).json({ message: 'Nombre y correo son obligatorios.' });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ message: 'El correo no tiene un formato válido.' });
+    }
+
+    if (password !== undefined && password !== '' && (typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH)) {
+      return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
     }
 
     // Verificar que el nuevo email no esté en uso por otro usuario
@@ -785,7 +838,7 @@ app.put('/api/perfil', authMiddleware, async (req, res) => {
       usuario: { id: id_usuario, nombre, email, foto_perfil: foto_perfil || null }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // ==========================================
@@ -803,31 +856,39 @@ app.post('/api/forgot-password', async (req, res) => {
 
     const [users] = await db.query('SELECT * FROM usuarios WHERE email = ?', [email]);
 
+    // Respuesta idéntica exista o no la cuenta, para no revelar qué correos
+    // están registrados.
+    const respuestaGenerica = () => res.status(200).json({
+      message: 'Si el correo está registrado, se enviará un código de recuperación.'
+    });
+
     if (users.length === 0) {
-      return res.status(404).json({ message: 'No existe un usuario con ese correo.' });
+      return respuestaGenerica();
     }
 
-    // Generar código de 6 dígitos
-    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    // Código de 6 dígitos generado con un CSPRNG
+    const codigo = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 
     // Expira en 15 minutos
     const expira = new Date(Date.now() + 15 * 60 * 1000);
 
-   const [updateResult] = await db.query(
-  'UPDATE usuarios SET reset_token = ?, reset_token_expira = ? WHERE email = ?',
-  [codigo, expira, email]
-);
-console.log('Resultado del UPDATE:', updateResult);
+    await db.query(
+      'UPDATE usuarios SET reset_token = ?, reset_token_expira = ? WHERE email = ?',
+      [codigo, expira, email]
+    );
 
-    // Simulación del envío de correo
-    console.log('========================================');
-    console.log(`Código de recuperación para ${email}: ${codigo}`);
-    console.log('Válido por 15 minutos.');
-    console.log('========================================');
+    // Simulación del envío de correo: nunca en producción, donde escribir el
+    // código en los logs equivale a filtrar la credencial de recuperación.
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('========================================');
+      console.log(`Código de recuperación para ${email}: ${codigo}`);
+      console.log('Válido por 15 minutos.');
+      console.log('========================================');
+    }
 
-    res.status(200).json({ message: 'Se generó un código de recuperación. Revisa la consola del servidor (simulación de correo).' });
+    respuestaGenerica();
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 
@@ -840,21 +901,26 @@ app.post('/api/reset-password', async (req, res) => {
       return res.status(400).json({ message: 'Correo, código y nueva contraseña son obligatorios.' });
     }
 
+    if (typeof nuevaPassword !== 'string' || nuevaPassword.length < PASSWORD_MIN_LENGTH) {
+      return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
+    }
+
     const [users] = await db.query('SELECT * FROM usuarios WHERE email = ?', [email]);
 
+    const codigoInvalido = () => res.status(400).json({ message: 'Código inválido o expirado.' });
+
     if (users.length === 0) {
-      return res.status(404).json({ message: 'No existe un usuario con ese correo.' });
+      return codigoInvalido();
     }
 
     const user = users[0];
 
+    if (!user.reset_token || !user.reset_token_expira || new Date() > new Date(user.reset_token_expira)) {
+      return codigoInvalido();
+    }
 
-if (user.reset_token !== codigo) {
-  return res.status(400).json({ message: 'Código incorrecto.' });
-}
-
-    if (!user.reset_token_expira || new Date() > new Date(user.reset_token_expira)) {
-      return res.status(400).json({ message: 'El código ha expirado. Solicita uno nuevo.' });
+    if (!comparacionSegura(user.reset_token, codigo)) {
+      return codigoInvalido();
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -867,7 +933,7 @@ if (user.reset_token !== codigo) {
 
     res.status(200).json({ message: 'Contraseña actualizada con éxito. Ya puedes iniciar sesión con tu nueva clave.' });
   } catch (error) {
-    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    errorServidor(res, error, `${req.method} ${req.originalUrl}`);
   }
 });
 // ==========================================
@@ -877,7 +943,7 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No se envió ninguna imagen.' });
   }
-  const imagen_url = `http://localhost:3000/uploads/${req.file.filename}`;
+  const imagen_url = `${PUBLIC_URL}/uploads/${req.file.filename}`;
   res.status(200).json({ message: 'Imagen subida con éxito', imagen_url });
 });
 
@@ -885,8 +951,13 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), (req, res) => {
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ message: `Error al subir archivo: ${err.message}` });
-  } else if (err) {
-    return res.status(400).json({ message: err.message });
+  }
+  if (err && err.message === 'Origen no autorizado por CORS') {
+    return res.status(403).json({ message: err.message });
+  }
+  if (err) {
+    console.error('[error no controlado]', err);
+    return res.status(400).json({ message: 'Solicitud inválida' });
   }
   next();
 });
