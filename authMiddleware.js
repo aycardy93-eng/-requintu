@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET, JWT_EXPIRES_IN } from './utils/config.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro_123';
+export const firmarToken = (usuario) => jwt.sign(
+  { id: usuario.id_usuario, email: usuario.email, rol: usuario.rol },
+  JWT_SECRET,
+  { expiresIn: JWT_EXPIRES_IN }
+);
 
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -14,7 +19,7 @@ export const authenticateToken = (req, res, next) => {
     const verified = jwt.verify(token, JWT_SECRET);
     req.user = verified;
     next();
-  } catch (error) {
+  } catch {
     res.status(403).json({ message: 'Token inválido o expirado' });
   }
 };

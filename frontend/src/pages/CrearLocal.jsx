@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch, subirImagen } from '../api/client';
 
 function CrearLocal() {
   const { token } = useAuth();
@@ -25,13 +24,11 @@ function CrearLocal() {
 
   // Cargar categorías y municipios al montar el componente
   useEffect(() => {
-    fetch(`${API_URL}/categorias`)
-      .then((res) => res.json())
+    apiFetch('/categorias')
       .then((data) => setCategorias(data.categorias || []))
       .catch(() => setCategorias([]));
 
-    fetch(`${API_URL}/municipios`)
-      .then((res) => res.json())
+    apiFetch('/municipios')
       .then((data) => setMunicipios(data.municipios || []))
       .catch(() => setMunicipios([]));
   }, []);
@@ -49,38 +46,14 @@ function CrearLocal() {
     setCargando(true);
 
     try {
-      let imagen_url = null;
-
       // 1. Si hay imagen seleccionada, subirla primero
-      if (imagenFile) {
-        const formData = new FormData();
-        formData.append('imagen', imagenFile);
-
-        const uploadRes = await fetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
-
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'Error al subir la imagen.');
-        }
-
-        imagen_url = uploadData.imagen_url;
-      }
+      const imagen_url = await subirImagen(imagenFile, token);
 
       // 2. Crear el local con (o sin) imagen_url
-     const localRes = await fetch(`${API_URL}/locales`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await apiFetch('/locales', {
+        metodo: 'POST',
+        token,
+        body: {
           nombre,
           descripcion,
           direccion,
@@ -88,14 +61,8 @@ function CrearLocal() {
           imagen_url,
           id_categoria: idCategoria || null,
           id_municipio: idMunicipio || null,
-        }),
+        },
       });
-
-      const localData = await localRes.json();
-
-      if (!localRes.ok) {
-        throw new Error(localData.message || 'Error al crear el local.');
-      }
 
       setExito('¡Local creado con éxito!');
       setTimeout(() => navigate('/locales'), 1200);

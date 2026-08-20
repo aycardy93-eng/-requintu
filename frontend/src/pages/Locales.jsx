@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch } from '../api/client';
 
 function Locales() {
   const [locales, setLocales] = useState([]);
@@ -15,13 +14,11 @@ function Locales() {
 
   // Cargar categorías y municipios una sola vez
   useEffect(() => {
-    fetch(`${API_URL}/categorias`)
-      .then((res) => res.json())
+    apiFetch('/categorias')
       .then((data) => setCategorias(data.categorias || []))
       .catch(() => {});
 
-    fetch(`${API_URL}/municipios`)
-      .then((res) => res.json())
+    apiFetch('/municipios')
       .then((data) => setMunicipios(data.municipios || []))
       .catch(() => {});
   }, []);
@@ -36,8 +33,7 @@ function Locales() {
     setCargando(true);
     setError('');
 
-    fetch(`${API_URL}/locales?${params.toString()}`)
-      .then((res) => res.json())
+    apiFetch(`/locales?${params.toString()}`)
       .then((data) => {
         setLocales(data.locales || []);
         setCargando(false);

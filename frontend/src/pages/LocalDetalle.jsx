@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch, subirImagen } from '../api/client';
 
 function LocalDetalle() {
   const { id } = useParams();
@@ -42,13 +41,11 @@ function LocalDetalle() {
     setCargando(true);
     setError('');
 
-    fetch(`${API_URL}/locales/${id}`)
-      .then((res) => res.json())
+    apiFetch(`/locales/${id}`)
       .then((data) => setLocal(data.local || null))
       .catch(() => setError('No se pudo cargar el local.'));
 
-    fetch(`${API_URL}/locales/${id}/calificaciones`)
-      .then((res) => res.json())
+    apiFetch(`/locales/${id}/calificaciones`)
       .then((data) => {
         setCalificaciones(data.calificaciones || []);
         setPromedio(data.promedio);
@@ -56,8 +53,7 @@ function LocalDetalle() {
       })
       .catch(() => setCargando(false));
 
-    fetch(`${API_URL}/locales/${id}/planes`)
-      .then((res) => res.json())
+    apiFetch(`/locales/${id}/planes`)
       .then((data) => setPlanes(data.planes || []))
       .catch(() => setPlanes([]));
   };
@@ -72,20 +68,11 @@ function LocalDetalle() {
     setEnviando(true);
 
     try {
-      const res = await fetch(`${API_URL}/locales/${id}/calificaciones`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ puntuacion: Number(puntuacion), comentario }),
+      await apiFetch(`/locales/${id}/calificaciones`, {
+        metodo: 'POST',
+        token,
+        body: { puntuacion: Number(puntuacion), comentario },
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al enviar la calificación.');
-      }
 
       setComentario('');
       setPuntuacion(5);
@@ -110,47 +97,19 @@ function LocalDetalle() {
     setEnviandoPlan(true);
 
     try {
-      let imagen_url = null;
+      const imagen_url = await subirImagen(imagenPlanFile, token);
 
-      if (imagenPlanFile) {
-        const formData = new FormData();
-        formData.append('imagen', imagenPlanFile);
-
-        const uploadRes = await fetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'Error al subir la imagen.');
-        }
-
-        imagen_url = uploadData.imagen_url;
-      }
-
-      const res = await fetch(`${API_URL}/locales/${id}/planes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await apiFetch(`/locales/${id}/planes`, {
+        metodo: 'POST',
+        token,
+        body: {
           titulo: tituloPlan,
           descripcion: descripcionPlan,
           fecha_inicio: fechaInicioPlan,
           fecha_fin: fechaFinPlan,
           imagen_url,
-        }),
+        },
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al crear el plan.');
-      }
 
       setExitoPlan('¡Promoción/evento creado con éxito!');
       setTituloPlan('');
@@ -194,46 +153,20 @@ function LocalDetalle() {
     setGuardandoEdicion(true);
 
     try {
-      let imagen_url = plan.imagen_url;
+      const imagen_url = (await subirImagen(imagenEditadaFile, token)) ?? plan.imagen_url;
 
-      if (imagenEditadaFile) {
-        const formData = new FormData();
-        formData.append('imagen', imagenEditadaFile);
-
-        const uploadRes = await fetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'Error al subir la imagen.');
-        }
-
-        imagen_url = uploadData.imagen_url;
-      }
-
-      const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await apiFetch(`/planes/${plan.id_plan}`, {
+        metodo: 'PUT',
+        token,
+        body: {
           titulo: tituloEditado,
           descripcion: descripcionEditada,
           precio: plan.precio || null,
           fecha_inicio: fechaInicioEditada,
           fecha_fin: fechaFinEditada,
           imagen_url,
-        }),
+        },
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al actualizar la promoción o evento.');
-      }
 
       cancelarEdicionPlan();
       setExitoPlan('Promoción/evento actualizado correctamente.');
@@ -250,15 +183,7 @@ function LocalDetalle() {
     if (!confirmar) return;
 
     try {
-      const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al eliminar la promoción o evento.');
-      }
+      await apiFetch(`/planes/${plan.id_plan}`, { metodo: 'DELETE', token });
 
       if (planEditando === plan.id_plan) {
         cancelarEdicionPlan();

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch } from '../api/client';
 
 function Register() {
   const [nombre, setNombre] = useState('');
@@ -18,25 +17,12 @@ function Register() {
     setCargando(true);
 
     try {
-      const respuesta = await fetch(`${API_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, email, password, rol })
-      });
-
-      const datos = await respuesta.json();
-
-      if (!respuesta.ok) {
-        setMensaje(datos.message || 'Error al registrarse');
-        setCargando(false);
-        return;
-      }
+      await apiFetch('/register', { metodo: 'POST', body: { nombre, email, password, rol } });
 
       setMensaje('¡Cuenta creada con éxito! Redirigiendo al login...');
       setTimeout(() => navigate('/login'), 1500);
     } catch (error) {
-      setMensaje('No se pudo conectar con el servidor.');
-      console.error(error);
+      setMensaje(error.message);
       setCargando(false);
     }
   };

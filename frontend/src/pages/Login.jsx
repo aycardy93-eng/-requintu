@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { apiFetch } from '../api/client';
 
 import imgArmenia from '../assets/armenia1.jpg';
 import imgBogota from '../assets/bogota.jpg';
@@ -33,13 +34,7 @@ export default function Login() {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch('http://localhost:3000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al ingresar');
+      const data = await apiFetch('/login', { metodo: 'POST', body: { email, password } });
       login(data.token);
       navigate('/locales');
     } catch (err) {
