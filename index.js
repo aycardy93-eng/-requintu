@@ -770,8 +770,7 @@ app.get('/api/departamentos', async (req, res) => {
     );
     res.json({ departamentos: rows });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al obtener los departamentos.' });
+    manejarErrorServidor(res, error, 'GET /api/departamentos');
   }
 });
 
@@ -785,8 +784,7 @@ app.get('/api/departamentos/:nombre/municipios', async (req, res) => {
     );
     res.json({ municipios: rows });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al obtener los municipios.' });
+    manejarErrorServidor(res, error, 'GET /api/departamentos/:nombre/municipios');
   }
 });
 // Consultar el perfil propio

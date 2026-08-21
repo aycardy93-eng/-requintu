@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const API_URL = 'http://localhost:3000/api';
+import { apiFetch } from '../lib/api';
 
 // Posición aproximada (columna, fila) de cada departamento en una cuadrícula de 10x11,
 // ubicada según su posición real en el mapa de Colombia (norte arriba, sur abajo, oeste izquierda, este derecha)
@@ -51,32 +50,25 @@ function MapaColombia() {
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null);
   const [municipios, setMunicipios] = useState([]);
   const [cargandoMunicipios, setCargandoMunicipios] = useState(false);
+  const [errorMunicipios, setErrorMunicipios] = useState('');
 
   useEffect(() => {
-    fetch(`${API_URL}/departamentos`)
-      .then((res) => res.json())
-      .then((data) => {
-        setDepartamentos(data.departamentos || []);
-        setCargando(false);
-      })
-      .catch(() => {
-        setError('No se pudo cargar el mapa. Verifica que el servidor esté corriendo.');
-        setCargando(false);
-      });
+    apiFetch('/departamentos')
+      .then((data) => setDepartamentos(data.departamentos || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setCargando(false));
   }, []);
 
   const abrirDepartamento = (nombreDepartamento) => {
     setDepartamentoSeleccionado(nombreDepartamento);
     setCargandoMunicipios(true);
+    setErrorMunicipios('');
     setMunicipios([]);
 
-    fetch(`${API_URL}/departamentos/${encodeURIComponent(nombreDepartamento)}/municipios`)
-      .then((res) => res.json())
-      .then((data) => {
-        setMunicipios(data.municipios || []);
-        setCargandoMunicipios(false);
-      })
-      .catch(() => setCargandoMunicipios(false));
+    apiFetch(`/departamentos/${encodeURIComponent(nombreDepartamento)}/municipios`)
+      .then((data) => setMunicipios(data.municipios || []))
+      .catch((err) => setErrorMunicipios(err.message))
+      .finally(() => setCargandoMunicipios(false));
   };
 
   const volverAlMapa = () => {
@@ -188,6 +180,8 @@ function MapaColombia() {
 
             {cargandoMunicipios ? (
               <p>Cargando municipios...</p>
+            ) : errorMunicipios ? (
+              <p style={{ color: '#ffb4b4' }}>{errorMunicipios}</p>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {municipios.map((m) => (
