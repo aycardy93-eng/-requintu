@@ -141,7 +141,7 @@ const checkRole = (roles) => {
 // -----------------------------------------------------------------------------
 app.post('/api/register', async (req, res) => {
   try {
-    const { nombre, email, password } = req.body; // Se excluye rol del body por seguridad
+    const { nombre, email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -153,7 +153,7 @@ app.post('/api/register', async (req, res) => {
       nombre,
       email,
       password: hashedPassword,
-      rol: 'turista' // Rol asignado por defecto de forma segura
+      rol: 'turista'
     });
 
     await newUser.save();
@@ -197,7 +197,6 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Por favor selecciona un archivo' });
   }
-  // Se usa ruta relativa para compatibilidad en producción
   res.json({ url: `/uploads/${req.file.filename}` });
 });
 
@@ -298,18 +297,31 @@ app.post('/api/calificaciones', authMiddleware, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// Middleware Global de Manejo de Errores para Multer
+// Middleware Global de Manejo de Errores
 // -----------------------------------------------------------------------------
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'El archivo excede el límite permitido de 5MB' });
+      return res.status(413).json({ error: 'El archivo excede el límite permitido de 5MB' });
     }
-    return res.status(400).json({ error: err.message });
-  } else if (err) {
-    return res.status(400).json({ error: err.message });
+    return res.status(400).json({ error: `Error en la subida del archivo: ${err.message}` });
   }
-  next();
+
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: 'El cuerpo de la petición contiene un JSON malformado' });
+  }
+
+  const statusCode = err.status || err.statusCode || 500;
+  
+  if (statusCode >= 400 && statusCode < 500) {
+    return res.status(statusCode).json({ error: err.message || 'Petición inválida' });
+  }
+
+  console.error('Error no controlado en el servidor:', err);
+  return res.status(500).json({ 
+    error: 'Error interno del servidor', 
+    detalles: process.env.NODE_ENV === 'development' ? err.message : undefined 
+  });
 });
 
 // -----------------------------------------------------------------------------
