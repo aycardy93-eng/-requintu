@@ -1,0 +1,16 @@
+# Variables de entorno
+.env
+.env.local
+
+# Archivos de subida de usuarios y estáticos
+uploads/*
+!uploads/.gitkeep
+
+# Dependencias
+node_modules/
+frontend/node_modules/
+
+# Builds y temporales
+dist/
+build/
+.DS_Store
