@@ -9,6 +9,7 @@ import CrearLocal from './pages/CrearLocal';
 import LocalDetalle from './pages/LocalDetalle';
 import Perfil from './pages/Perfil';
 import ProtectedRoute from './components/ProtectedRoute';
+import MapaColombia from './pages/MapaColombia';
 
 function App() {
   return (
@@ -30,18 +31,18 @@ function App() {
           }
         />
         <Route
-          path="/crear-local"
+          path="/mapa"
           element={
             <ProtectedRoute>
-              <CrearLocal />
+              <MapaColombia />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/"
+          path="/crear-local"
           element={
             <ProtectedRoute>
-              <Home />
+              <CrearLocal />
             </ProtectedRoute>
           }
         />

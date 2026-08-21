@@ -63,6 +63,12 @@ export default function Navbar() {
           Publicaciones
         </Link>
 
+        {isAuthenticated && (
+          <Link to="/mapa" style={{ color: '#ccff00', textDecoration: 'none', fontWeight: 'bold' }}>
+            Mapa
+          </Link>
+        )}
+
         {isAuthenticated ? (
           <>
             <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px' }}>
