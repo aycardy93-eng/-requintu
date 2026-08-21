@@ -40,15 +40,27 @@ export default function Login() {
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email && password) {
-      const usuarioObj = { id: 1, email: email, nombre: email.split('@')[0] };
-      const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(usuarioObj))));
-      const tokenFicticio = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${payloadBase64}.firma`;
+    try {
+      const response = await fetch('http://localhost:3000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-      login(tokenFicticio);
-      navigate('/publicaciones');
+      const data = await response.json();
+
+      if (!response.ok) {
+       alert(data.error || 'Credenciales incorrectas');
+        return;
+      }
+
+      login(data.token); // token real emitido por tu backend
+      navigate('/mapa');
+    } catch (error) {
+      console.error('Error al iniciar sesión:', error);
+      alert('No se pudo conectar con el servidor');
     }
   };
 

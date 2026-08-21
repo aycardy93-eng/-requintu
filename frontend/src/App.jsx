@@ -1,3 +1,4 @@
+
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
@@ -15,13 +16,29 @@ function App() {
   return (
     <>
       <Navbar />
+
       <Routes>
         <Route path="/" element={<Home />} />
+
         <Route path="/login" element={<Login />} />
+
         <Route path="/register" element={<Register />} />
-        <Route path="/publicaciones" element={<Publicaciones />} />
-        <Route path="/locales" element={<Locales />} />
-        <Route path="/locales/:id" element={<LocalDetalle />} />
+
+        <Route
+          path="/publicaciones"
+          element={<Publicaciones />}
+        />
+
+        <Route
+          path="/locales"
+          element={<Locales />}
+        />
+
+        <Route
+          path="/locales/:id"
+          element={<LocalDetalle />}
+        />
+
         <Route
           path="/perfil"
           element={
@@ -30,6 +47,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/mapa"
           element={
@@ -38,6 +56,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/crear-local"
           element={
