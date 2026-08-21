@@ -1,18 +1,34 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import fondoRegisterImg from '../assets/registro-fondo.jpg';
+import { apiFetch } from '../lib/api';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Viajero');
+  const [role, setRole] = useState('turista');
+  const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (name && email && password) {
+    setError('');
+    setEnviando(true);
+
+    try {
+      await apiFetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: name, email, password, rol: role }),
+      });
+
       navigate('/login');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -126,13 +142,16 @@ export default function Register() {
                 backgroundColor: '#fff',
               }}
             >
-              <option value="Viajero">Viajero</option>
-              <option value="Propietario">Propietario de local</option>
+              <option value="turista">Viajero</option>
+              <option value="comerciante">Propietario de local</option>
             </select>
           </div>
 
+          {error && <p style={{ color: '#b91c1c', fontSize: '14px', margin: 0 }}>{error}</p>}
+
           <button
             type="submit"
+            disabled={enviando}
             style={{
               backgroundColor: '#38bdf8',
               color: '#ffffff',
@@ -141,11 +160,12 @@ export default function Register() {
               borderRadius: '6px',
               fontWeight: 'bold',
               fontSize: '16px',
-              cursor: 'pointer',
+              cursor: enviando ? 'default' : 'pointer',
               marginTop: '10px',
+              opacity: enviando ? 0.7 : 1,
             }}
           >
-            Registrarme
+            {enviando ? 'Creando cuenta...' : 'Registrarme'}
           </button>
         </form>
 

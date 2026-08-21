@@ -1,68 +1,58 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 export default function Locales() {
+  const [searchParams] = useSearchParams();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedMunicipality, setSelectedMunicipality] = useState('');
+  const [selectedMunicipality, setSelectedMunicipality] = useState(searchParams.get('municipio') || '');
 
-  // Datos de ejemplo
-  const locales = [
-    {
-      id: 1,
-      name: 'Café La Montaña',
-      description: 'Cafetería artesanal en el centro del pueblo',
-      category: 'Restaurante',
-      department: 'Antioquia',
-      municipality: 'Medellín',
-      address: 'Calle 10 #5-20',
-      image: ''
-    },
-    {
-      id: 2,
-      name: 'Café La Montaña',
-      description: 'Cafetería artesanal en el centro del pueblo',
-      category: 'Restaurante',
-      department: 'Quindío',
-      municipality: 'Quimbaya',
-      address: 'Calle 10 #5-20',
-      image: ''
-    },
-    {
-      id: 3,
-      name: 'Café La Montaña',
-      description: 'Cafetería artesanal',
-      category: 'Restaurante',
-      department: 'Quindío',
-      municipality: 'Quimbaya',
-      address: '',
-      image: ''
-    }
-  ];
+  const [categorias, setCategorias] = useState([]);
+  const [municipios, setMunicipios] = useState([]);
+  const [locales, setLocales] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
 
-  // Obtener lista única de departamentos
-  const departments = useMemo(() => {
-    return [...new Set(locales.map((l) => l.department).filter(Boolean))];
-  }, [locales]);
+  useEffect(() => {
+    apiFetch('/categorias')
+      .then((data) => setCategorias(data.categorias || []))
+      .catch((err) => setError(err.message));
 
-  // Obtener municipios filtrados según el departamento seleccionado
-  const municipalities = useMemo(() => {
-    const filtered = selectedDepartment
-      ? locales.filter((l) => l.department === selectedDepartment)
-      : locales;
-    return [...new Set(filtered.map((l) => l.municipality).filter(Boolean))];
-  }, [locales, selectedDepartment]);
+    apiFetch('/municipios')
+      .then((data) => setMunicipios(data.municipios || []))
+      .catch((err) => setError(err.message));
+  }, []);
 
-  // Filtrado final de locales
-  const filteredLocales = locales.filter((local) => {
-    const matchesSearch = local.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory ? local.category === selectedCategory : true;
-    const matchesDepartment = selectedDepartment ? local.department === selectedDepartment : true;
-    const matchesMunicipality = selectedMunicipality ? local.municipality === selectedMunicipality : true;
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('buscar', searchTerm);
+    if (selectedCategory) params.set('categoria', selectedCategory);
+    if (selectedMunicipality) params.set('municipio', selectedMunicipality);
 
-    return matchesSearch && matchesCategory && matchesDepartment && matchesMunicipality;
-  });
+    setCargando(true);
+    setError('');
+
+    apiFetch(`/locales?${params.toString()}`)
+      .then((data) => setLocales(data.locales || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setCargando(false));
+  }, [searchTerm, selectedCategory, selectedMunicipality]);
+
+  const departamentos = useMemo(
+    () => [...new Set(municipios.map((m) => m.departamento).filter(Boolean))].sort(),
+    [municipios]
+  );
+
+  const municipiosVisibles = useMemo(
+    () =>
+      selectedDepartment
+        ? municipios.filter((m) => m.departamento === selectedDepartment)
+        : municipios,
+    [municipios, selectedDepartment]
+  );
 
   return (
     <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -101,9 +91,11 @@ export default function Locales() {
           }}
         >
           <option value="">Todas las categorías</option>
-          <option value="Restaurante">Restaurante</option>
-          <option value="Hotel">Hotel</option>
-          <option value="Artesanías">Artesanías</option>
+          {categorias.map((cat) => (
+            <option key={cat.id_categoria} value={cat.id_categoria}>
+              {cat.nombre}
+            </option>
+          ))}
         </select>
 
         <select
@@ -121,8 +113,8 @@ export default function Locales() {
           }}
         >
           <option value="">Todos los departamentos</option>
-          {departments.map((dept, index) => (
-            <option key={index} value={dept}>
+          {departamentos.map((dept) => (
+            <option key={dept} value={dept}>
               {dept}
             </option>
           ))}
@@ -140,62 +132,78 @@ export default function Locales() {
           }}
         >
           <option value="">Todos los municipios</option>
-          {municipalities.map((muni, index) => (
-            <option key={index} value={muni}>
-              {muni}
+          {municipiosVisibles.map((muni) => (
+            <option key={muni.id_municipio} value={muni.id_municipio}>
+              {muni.nombre}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Grid de Tarjetas */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '20px'
-        }}
-      >
-        {filteredLocales.map((local) => (
-          <div
-            key={local.id}
-            style={{
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-              backgroundColor: '#fff'
-            }}
-          >
-            <div
+      {error && (
+        <p style={{ color: '#b91c1c', marginBottom: '20px' }}>{error}</p>
+      )}
+
+      {cargando ? (
+        <p style={{ color: '#6b7280' }}>Cargando locales...</p>
+      ) : !error && locales.length === 0 ? (
+        <p style={{ color: '#6b7280' }}>No hay locales que coincidan con los filtros.</p>
+      ) : (
+        /* Grid de Tarjetas */
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '20px'
+          }}
+        >
+          {locales.map((local) => (
+            <Link
+              key={local.id_local}
+              to={`/locales/${local.id_local}`}
               style={{
-                height: '180px',
-                backgroundColor: '#f3f4f6',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                color: '#9ca3af'
+                textDecoration: 'none',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                backgroundColor: '#fff'
               }}
             >
-              {local.image ? (
-                <img src={local.image} alt={local.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                'Sin imagen'
-              )}
-            </div>
-            <div style={{ padding: '15px' }}>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: '#111827' }}>{local.name}</h3>
-              <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#4b5563' }}>{local.description}</p>
-              <p style={{ margin: '0 0 5px 0', fontSize: '13px', color: '#6b7280' }}>
-                {local.category} · {local.municipality}{local.department ? `, ${local.department}` : ''}
-              </p>
-              {local.address && (
-                <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>{local.address}</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+              <div
+                style={{
+                  height: '180px',
+                  backgroundColor: '#f3f4f6',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  color: '#9ca3af'
+                }}
+              >
+                {local.imagen_url ? (
+                  <img
+                    src={local.imagen_url}
+                    alt={local.nombre}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  'Sin imagen'
+                )}
+              </div>
+              <div style={{ padding: '15px' }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: '#111827' }}>{local.nombre}</h3>
+                <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#4b5563' }}>{local.descripcion}</p>
+                <p style={{ margin: '0 0 5px 0', fontSize: '13px', color: '#6b7280' }}>
+                  {[local.categoria, local.municipio].filter(Boolean).join(' · ')}
+                </p>
+                {local.direccion && (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>{local.direccion}</p>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

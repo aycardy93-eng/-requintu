@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../lib/api';
 
 // Importación de assets locales
 import fondoInicio from '../assets/fondo-inicio.jpg'; // O .png según la extensión real
@@ -17,6 +18,8 @@ const imagenesCarrusel = [
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
   const [indexCarrusel, setIndexCarrusel] = useState(0);
 
   const navigate = useNavigate();
@@ -40,15 +43,28 @@ export default function Login() {
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email && password) {
-      const usuarioObj = { id: 1, email: email, nombre: email.split('@')[0] };
-      const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(usuarioObj))));
-      const tokenFicticio = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${payloadBase64}.firma`;
+    setError('');
+    setEnviando(true);
 
-      login(tokenFicticio);
+    try {
+      const data = await apiFetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!data.token) {
+        throw new Error('El servidor no devolvió un token de sesión.');
+      }
+
+      login(data.token);
       navigate('/publicaciones');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -206,8 +222,13 @@ export default function Login() {
               />
             </div>
 
+            {error && (
+              <p style={{ color: '#b91c1c', fontSize: '13px', margin: 0 }}>{error}</p>
+            )}
+
             <button
               type="submit"
+              disabled={enviando}
               style={{
                 backgroundColor: '#38bdf8',
                 color: '#fff',
@@ -215,11 +236,12 @@ export default function Login() {
                 padding: '12px',
                 borderRadius: '6px',
                 fontWeight: 'bold',
-                cursor: 'pointer',
+                cursor: enviando ? 'default' : 'pointer',
                 marginTop: '10px',
+                opacity: enviando ? 0.7 : 1,
               }}
             >
-              Ingresar
+              {enviando ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
 
