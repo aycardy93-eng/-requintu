@@ -1,177 +1,236 @@
-import { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { apiFetch } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
-import imgArmenia from '../assets/armenia1.jpg';
-import imgBogota from '../assets/bogota.jpg';
-import imgBucaramanga from '../assets/bucaramanga.jpg';
+// Importación de assets locales
+import fondoInicio from '../assets/fondo-inicio.jpg'; // O .png según la extensión real
+import armeniaImg from '../assets/armenia1.jpg';
+import bogotaImg from '../assets/bogota.jpg';
+import bucaramangaImg from '../assets/bucaramanga.jpg';
 
-const imagenes = [
-  { url: imgArmenia, titulo: 'Armenia', subtitulo: 'Ciudad Milagro' },
-  { url: imgBogota, titulo: 'Bogotá', subtitulo: 'Capital Cultural' },
-  { url: imgBucaramanga, titulo: 'Bucaramanga', subtitulo: 'La Ciudad Bonita' },
+const imagenesCarrusel = [
+  { img: bogotaImg, titulo: 'Bogotá', descripcion: 'La capital cultural y de negocios' },
+  { img: armeniaImg, titulo: 'Armenia', descripcion: 'El corazón del Paisaje Cultural Cafetero' },
+  { img: bucaramangaImg, titulo: 'Bucaramanga', descripcion: 'La ciudad bonita de Colombia' },
 ];
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [index, setIndex] = useState(0);
+  const [indexCarrusel, setIndexCarrusel] = useState(0);
 
-  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  // Cambiar imagen cada 4 segundos usando useEffect correctamente
+  // Cambio automático del carrusel cada 4 segundos
   useEffect(() => {
     const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % imagenes.length);
+      setIndexCarrusel((prevIndex) => (prevIndex + 1) % imagenesCarrusel.length);
     }, 4000);
     return () => clearInterval(timer);
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSiguiente = () => {
+    setIndexCarrusel((prevIndex) => (prevIndex + 1) % imagenesCarrusel.length);
+  };
+
+  const handleAnterior = () => {
+    setIndexCarrusel((prevIndex) =>
+      prevIndex === 0 ? imagenesCarrusel.length - 1 : prevIndex - 1
+    );
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError('');
-    try {
-      const data = await apiFetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    if (email && password) {
+      const usuarioObj = { id: 1, email: email, nombre: email.split('@')[0] };
+      const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(usuarioObj))));
+      const tokenFicticio = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${payloadBase64}.firma`;
 
-      if (!data.token) {
-        throw new Error('El servidor no devolvió un token de sesión.');
-      }
-
-      login(data.token);
-      navigate('/locales');
-    } catch (err) {
-      setError(err.message);
+      login(tokenFicticio);
+      navigate('/publicaciones');
     }
   };
 
+  const slideActual = imagenesCarrusel[indexCarrusel];
+
   return (
-    <div style={estilos.contenedor}>
-      {/* Carrusel Izquierda */}
-      <div style={estilos.carrusel}>
-        <img
-          src={imagenes[index].url}
-          alt={imagenes[index].titulo}
-          style={estilos.imagen}
-        />
-        <div style={estilos.overlay}>
-          <h2 style={{ margin: 0, fontSize: '2rem' }}>{imagenes[index].titulo}</h2>
-          <p style={{ margin: '5px 0 0 0', opacity: 0.9 }}>{imagenes[index].subtitulo}</p>
+    <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>
+      {/* Columna Izquierda: Carrusel con imágenes locales */}
+      <div
+        style={{
+          flex: 1,
+          position: 'relative',
+          backgroundImage: `url(${slideActual.img})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          transition: 'background-image 0.5s ease-in-out',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          padding: '40px',
+          color: '#fff',
+        }}
+      >
+        {/* Contenido descriptivo del slide */}
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <h1 style={{ fontSize: '36px', margin: '0 0 10px 0', fontWeight: 'bold' }}>
+            {slideActual.titulo}
+          </h1>
+          <p style={{ fontSize: '18px', margin: 0 }}>{slideActual.descripcion}</p>
         </div>
+
+        {/* Flechas de navegación manual */}
+        <button
+          onClick={handleAnterior}
+          style={{
+            position: 'absolute',
+            left: '15px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            background: 'none',
+            border: 'none',
+            color: '#38bdf8',
+            fontSize: '32px',
+            cursor: 'pointer',
+            zIndex: 3,
+            fontWeight: 'bold',
+          }}
+        >
+          &#10094;
+        </button>
+
+        <button
+          onClick={handleSiguiente}
+          style={{
+            position: 'absolute',
+            right: '15px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            background: 'none',
+            border: 'none',
+            color: '#38bdf8',
+            fontSize: '32px',
+            cursor: 'pointer',
+            zIndex: 3,
+            fontWeight: 'bold',
+          }}
+        >
+          &#10095;
+        </button>
+
+        {/* Capa de sombra para mejorar la legibilidad del texto */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.35)',
+            zIndex: 1,
+          }}
+        />
       </div>
 
-      {/* Formulario Derecha */}
-      <div style={estilos.formularioSeccion}>
-        <div style={estilos.card}>
-          <h2 style={{ textAlign: 'center', color: '#2e7d32', marginBottom: '20px' }}>
-            Requintu - Iniciar sesión
+      {/* Columna Derecha: Fondo 'fondo-inicio' y Formulario */}
+      <div
+        style={{
+          flex: 1,
+          backgroundImage: `url(${fondoInicio})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '20px',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            padding: '35px 30px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+            width: '100%',
+            maxWidth: '360px',
+          }}
+        >
+          <h2
+            style={{
+              textAlign: 'center',
+              color: '#0284c7',
+              marginTop: 0,
+              marginBottom: '25px',
+              fontSize: '20px',
+            }}
+          >
+            REQUINTU - Iniciar sesión
           </h2>
-
-          {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Correo:</label>
+              <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#333' }}>
+                Correo:
+              </label>
               <input
                 type="email"
-                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={estilos.input}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '6px',
+                  border: '1px solid #ccc',
+                  boxSizing: 'border-box',
+                  backgroundColor: '#e8f0fe',
+                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Contraseña:</label>
+              <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#333' }}>
+                Contraseña:
+              </label>
               <input
                 type="password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={estilos.input}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '6px',
+                  border: '1px solid #ccc',
+                  boxSizing: 'border-box',
+                  backgroundColor: '#e8f0fe',
+                }}
               />
             </div>
 
-            <button type="submit" style={estilos.boton}>
+            <button
+              type="submit"
+              style={{
+                backgroundColor: '#38bdf8',
+                color: '#fff',
+                border: 'none',
+                padding: '12px',
+                borderRadius: '6px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                marginTop: '10px',
+              }}
+            >
               Ingresar
             </button>
           </form>
 
-          <p style={{ marginTop: '20px', textAlign: 'center' }}>
-            ¿No tienes cuenta? <Link to="/register" style={{ color: '#2e7d32', fontWeight: 'bold' }}>Regístrate</Link>
+          <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#555' }}>
+            ¿No tienes cuenta?{' '}
+            <Link to="/register" style={{ color: '#0284c7', fontWeight: 'bold', textDecoration: 'none' }}>
+              Regístrate
+            </Link>
           </p>
         </div>
       </div>
     </div>
   );
 }
-
-const estilos = {
-  contenedor: {
-    display: 'flex',
-    width: '100vw',
-    height: 'calc(100vh - 70px)',
-    overflow: 'hidden',
-  },
-  carrusel: {
-    flex: '1.2',
-    position: 'relative',
-    height: '100%',
-    backgroundColor: '#000',
-  },
-  imagen: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    transition: 'all 0.5s ease-in-out',
-  },
-  overlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: '40px 20px',
-    background: 'linear-gradient(transparent, rgba(0, 0, 0, 0.85))',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  formularioSeccion: {
-    flex: '1',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f4f4f4',
-    padding: '20px',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '380px',
-    padding: '30px',
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  },
-  input: {
-    width: '100%',
-    padding: '10px',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-    boxSizing: 'border-box',
-  },
-  boton: {
-    padding: '12px',
-    backgroundColor: '#2e7d32',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    marginTop: '10px',
-  },
-};
