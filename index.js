@@ -470,6 +470,27 @@ app.get('/api/municipios', asyncHandler(async (req, res) => {
   res.status(200).json({ municipios });
 }));
 
+// Lista de departamentos únicos con el conteo de municipios de cada uno
+app.get('/api/departamentos', asyncHandler(async (req, res) => {
+  const departamentos = await consultar(
+    `SELECT departamento, COUNT(*) AS total_municipios
+     FROM municipios
+     WHERE departamento IS NOT NULL
+     GROUP BY departamento
+     ORDER BY departamento`
+  );
+  res.json({ departamentos });
+}, 'Error al obtener los departamentos.'));
+
+// Municipios de un departamento específico
+app.get('/api/departamentos/:nombre/municipios', asyncHandler(async (req, res) => {
+  const municipios = await consultar(
+    'SELECT id_municipio, nombre FROM municipios WHERE departamento = ? ORDER BY nombre',
+    [req.params.nombre]
+  );
+  res.json({ municipios });
+}, 'Error al obtener los municipios.'));
+
 // ==========================================
 // PERFIL
 // ==========================================
