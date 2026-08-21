@@ -1,95 +1,161 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { apiFetch } from '../api/client';
+import fondoRegisterImg from '../assets/registro-fondo.jpg';
 
-function Register() {
-  const [nombre, setNombre] = useState('');
+export default function Register() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rol, setRol] = useState('turista');
-  const [mensaje, setMensaje] = useState('');
-  const [cargando, setCargando] = useState(false);
+  const [role, setRole] = useState('Viajero');
   const navigate = useNavigate();
 
-  const handleRegister = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setMensaje('');
-    setCargando(true);
-
-    try {
-      await apiFetch('/register', { metodo: 'POST', body: { nombre, email, password, rol } });
-
-      setMensaje('¡Cuenta creada con éxito! Redirigiendo al login...');
-      setTimeout(() => navigate('/login'), 1500);
-    } catch (error) {
-      setMensaje(error.message);
-      setCargando(false);
+    if (name && email && password) {
+      navigate('/login');
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', fontFamily: 'sans-serif' }}>
-      <h1>Requintu - Crear cuenta</h1>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: 'calc(100vh - 70px)',
+        width: '100%',
+        backgroundImage: `url(${fondoRegisterImg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        padding: '20px 0',
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.92)',
+          padding: '40px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+          width: '100%',
+          maxWidth: '400px',
+        }}
+      >
+        <h2
+          style={{
+            textAlign: 'center',
+            color: '#0284c7',
+            marginTop: 0,
+            marginBottom: '25px',
+            textTransform: 'uppercase',
+          }}
+        >
+          REQUINTU - Crear cuenta
+        </h2>
 
-      <form onSubmit={handleRegister}>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Nombre:</label><br />
-          <input
-            type="text"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-            style={{ width: '100%', padding: '8px' }}
-          />
-        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#333' }}>
+              Nombre:
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
 
-        <div style={{ marginBottom: '15px' }}>
-          <label>Correo:</label><br />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: '100%', padding: '8px' }}
-          />
-        </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#333' }}>
+              Correo:
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
 
-        <div style={{ marginBottom: '15px' }}>
-          <label>Contraseña:</label><br />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            style={{ width: '100%', padding: '8px' }}
-          />
-        </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#333' }}>
+              Contraseña:
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
 
-        <div style={{ marginBottom: '15px' }}>
-          <label>Tipo de cuenta:</label><br />
-          <select
-            value={rol}
-            onChange={(e) => setRol(e.target.value)}
-            style={{ width: '100%', padding: '8px' }}
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#333' }}>
+              Tipo de cuenta:
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                boxSizing: 'border-box',
+                backgroundColor: '#fff',
+              }}
+            >
+              <option value="Viajero">Viajero</option>
+              <option value="Propietario">Propietario de local</option>
+            </select>
+          </div>
+
+          <button
+            type="submit"
+            style={{
+              backgroundColor: '#38bdf8',
+              color: '#ffffff',
+              border: 'none',
+              padding: '12px',
+              borderRadius: '6px',
+              fontWeight: 'bold',
+              fontSize: '16px',
+              cursor: 'pointer',
+              marginTop: '10px',
+            }}
           >
-            <option value="turista">Turista</option>
-            <option value="comerciante">Comerciante</option>
-          </select>
-        </div>
+            Registrarme
+          </button>
+        </form>
 
-        <button type="submit" disabled={cargando} style={{ padding: '10px 20px' }}>
-          {cargando ? 'Creando cuenta...' : 'Registrarme'}
-        </button>
-      </form>
-
-      {mensaje && <p style={{ marginTop: '20px' }}>{mensaje}</p>}
-
-      <p style={{ marginTop: '20px' }}>
-        ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
-      </p>
+        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: '#555' }}>
+          ¿Ya tienes cuenta?{' '}
+          <Link to="/login" style={{ color: '#0284c7', fontWeight: 'bold', textDecoration: 'none' }}>
+            Inicia sesión
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
-
-export default Register;
