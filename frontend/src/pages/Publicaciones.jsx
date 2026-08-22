@@ -1,8 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FondoPagina from '../components/FondoPagina';
 
 const API_URL = 'http://localhost:3000/api';
+const BACKEND_ORIGIN = 'http://localhost:3000';
+
+// Las imágenes subidas se guardan como ruta relativa (/uploads/archivo.jpg).
+// El frontend corre en otro puerto (5173), así que hay que completar la URL
+// con el origen del backend para que el navegador la encuentre.
+const resolverImagenUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${BACKEND_ORIGIN}${url}`;
+};
 
 function Publicaciones() {
   const { token, isAuthenticated, usuario: usuarioActual } = useAuth();
@@ -59,10 +70,10 @@ function Publicaciones() {
     const uploadData = await uploadRes.json();
 
     if (!uploadRes.ok) {
-      throw new Error(uploadData.message || 'Error al subir la imagen.');
+      throw new Error(uploadData.error || 'Error al subir la imagen.');
     }
 
-    return uploadData.imagen_url;
+    return uploadData.url;
   };
 
   const handleCrear = async (e) => {
@@ -91,7 +102,7 @@ function Publicaciones() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al crear la publicación.');
+        throw new Error(data.error || 'Error al crear la publicación.');
       }
 
       setContenidoNuevo('');
@@ -146,7 +157,7 @@ function Publicaciones() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al actualizar la publicación.');
+        throw new Error(data.error || 'Error al actualizar la publicación.');
       }
 
       handleCancelarEdicion();
@@ -171,7 +182,7 @@ function Publicaciones() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al eliminar la publicación.');
+        throw new Error(data.error || 'Error al eliminar la publicación.');
       }
 
       cargarPublicaciones();
@@ -181,7 +192,8 @@ function Publicaciones() {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '30px auto', fontFamily: 'sans-serif', padding: '0 15px' }}>
+    <FondoPagina>
+    <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', padding: '30px 15px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Publicaciones</h1>
         <Link to="/">← Volver</Link>
@@ -189,7 +201,7 @@ function Publicaciones() {
 
       {/* Formulario de nueva publicación */}
       {isAuthenticated ? (
-        <form onSubmit={handleCrear} style={{ marginBottom: '25px', border: '1px solid #ddd', borderRadius: '8px', padding: '15px' }}>
+        <form onSubmit={handleCrear} style={{ marginBottom: '25px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(18, 40, 61, 0.75)', borderRadius: '8px', padding: '15px' }}>
           {errorNuevo && (
             <p style={{ color: 'red', background: '#fee', padding: '8px' }}>{errorNuevo}</p>
           )}
@@ -225,14 +237,14 @@ function Publicaciones() {
 
       {/* Lista de publicaciones */}
       {publicaciones.map((pub) => {
-        const esAutor = usuarioActual && pub.id_usuario === usuarioActual.id;
+        const esAutor = usuarioActual && pub.usuario_id === usuarioActual.id;
         const enEdicion = editandoId === pub.id;
 
         return (
-          <div key={pub.id} style={{ border: '1px solid #eee', borderRadius: '8px', padding: '15px', marginBottom: '15px' }}>
+          <div key={pub.id} style={{ border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(18, 40, 61, 0.75)', borderRadius: '8px', padding: '15px', marginBottom: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <strong>{pub.autor}</strong>
-              <span style={{ fontSize: '12px', color: '#888' }}>
+              <span style={{ fontSize: '12px', color: '#a9c9bb' }}>
                 {new Date(pub.fecha_creacion).toLocaleString('es-CO')}
               </span>
             </div>
@@ -251,13 +263,13 @@ function Publicaciones() {
 
                 {pub.imagen_url && !imagenEditFile && (
                   <img
-                    src={pub.imagen_url}
+                    src={resolverImagenUrl(pub.imagen_url)}
                     alt="Actual"
                     style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '6px', marginBottom: '10px' }}
                   />
                 )}
 
-                <label style={{ fontSize: '13px', color: '#666' }}>Cambiar imagen (opcional):</label>
+                <label style={{ fontSize: '13px', color: '#a9c9bb' }}>Cambiar imagen (opcional):</label>
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp"
@@ -282,7 +294,7 @@ function Publicaciones() {
 
                 {pub.imagen_url && (
                   <img
-                    src={pub.imagen_url}
+                    src={resolverImagenUrl(pub.imagen_url)}
                     alt="Publicación"
                     style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', borderRadius: '6px', marginBottom: '10px' }}
                   />
@@ -307,6 +319,7 @@ function Publicaciones() {
         );
       })}
     </div>
+    </FondoPagina>
   );
 }
 

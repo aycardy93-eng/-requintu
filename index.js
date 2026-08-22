@@ -173,6 +173,7 @@ app.get('/api/categorias', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener categorías', detalles: err.message });
   }
 });
+
 // -----------------------------------------------------------------------------
 // Mapa: Departamentos y Municipios
 // -----------------------------------------------------------------------------
@@ -269,10 +270,10 @@ app.get('/api/publicaciones', async (req, res) => {
     const [publicaciones] = await pool.query(`
       SELECT p.*, u.nombre AS autor 
       FROM publicaciones p 
-      JOIN usuarios u ON p.usuario_id = u.id 
-      ORDER BY p.created_at DESC
+      JOIN usuarios u ON p.usuario_id = u.id_usuario 
+      ORDER BY p.fecha_creacion DESC
     `);
-    res.json(publicaciones);
+    res.json({ publicaciones });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener publicaciones', detalles: err.message });
   }
@@ -280,14 +281,67 @@ app.get('/api/publicaciones', async (req, res) => {
 
 app.post('/api/publicaciones', authMiddleware, async (req, res) => {
   try {
-    const { titulo, contenido, imagen, local_id } = req.body;
+    const { contenido, imagen_url } = req.body;
+
+    if (!contenido || !contenido.trim()) {
+      return res.status(400).json({ error: 'El contenido es obligatorio' });
+    }
+
     const [result] = await pool.query(
-      'INSERT INTO publicaciones (titulo, contenido, imagen, local_id, usuario_id) VALUES (?, ?, ?, ?, ?)',
-      [titulo, contenido, imagen, local_id || null, req.user.id]
+      'INSERT INTO publicaciones (usuario_id, contenido, imagen_url) VALUES (?, ?, ?)',
+      [req.user.id, contenido, imagen_url || null]
     );
     res.status(201).json({ mensaje: 'Publicación creada con éxito', id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: 'Error al crear publicación', detalles: err.message });
+  }
+});
+
+app.put('/api/publicaciones/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contenido, imagen_url } = req.body;
+
+    const [rows] = await pool.query('SELECT usuario_id FROM publicaciones WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Publicación no encontrada' });
+    }
+
+    const esDueño = rows[0].usuario_id === req.user.id;
+    const esAdmin = req.user.rol === 'admin';
+    if (!esDueño && !esAdmin) {
+      return res.status(403).json({ error: 'No tienes permiso para editar esta publicación' });
+    }
+
+    await pool.query(
+      'UPDATE publicaciones SET contenido = ?, imagen_url = ? WHERE id = ?',
+      [contenido, imagen_url || null, id]
+    );
+    res.json({ mensaje: 'Publicación actualizada con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al actualizar publicación', detalles: err.message });
+  }
+});
+
+app.delete('/api/publicaciones/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.query('SELECT usuario_id FROM publicaciones WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Publicación no encontrada' });
+    }
+
+    const esDueño = rows[0].usuario_id === req.user.id;
+    const esAdmin = req.user.rol === 'admin';
+    if (!esDueño && !esAdmin) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar esta publicación' });
+    }
+
+    await pool.query('DELETE FROM publicaciones WHERE id = ?', [id]);
+    res.json({ mensaje: 'Publicación eliminada con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar publicación', detalles: err.message });
   }
 });
 
