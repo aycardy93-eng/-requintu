@@ -221,20 +221,20 @@ app.get('/api/locales', async (req, res) => {
   try {
     const { categoria, municipio, buscar } = req.query;
     let query = `
-      SELECT l.*, c.nombre AS categoria_nombre, m.nombre AS municipio_nombre 
+      SELECT l.*, c.nombre AS categoria_nombre, m.nombre AS municipio_nombre, m.departamento
       FROM locales l
-      LEFT JOIN categorias c ON l.categoria_id = c.id
-      LEFT JOIN municipios m ON l.municipio_id = m.id
+      LEFT JOIN categorias c ON l.id_categoria = c.id_categoria
+      LEFT JOIN municipios m ON l.id_municipio = m.id_municipio
       WHERE 1=1
     `;
     const params = [];
 
     if (categoria) {
-      query += ' AND l.categoria_id = ?';
+      query += ' AND l.id_categoria = ?';
       params.push(categoria);
     }
     if (municipio) {
-      query += ' AND l.municipio_id = ?';
+      query += ' AND l.id_municipio = ?';
       params.push(municipio);
     }
     if (buscar) {
@@ -243,7 +243,7 @@ app.get('/api/locales', async (req, res) => {
     }
 
     const [locales] = await pool.query(query, params);
-    res.json(locales);
+    res.json({ locales });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener locales', detalles: err.message });
   }
@@ -251,14 +251,179 @@ app.get('/api/locales', async (req, res) => {
 
 app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), async (req, res) => {
   try {
-    const { nombre, descripcion, direccion, imagen, categoria_id, municipio_id } = req.body;
+    const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
     const [result] = await pool.query(
-      'INSERT INTO locales (nombre, descripcion, direccion, imagen, categoria_id, municipio_id, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [nombre, descripcion, direccion, imagen, categoria_id, municipio_id, req.user.id]
+      'INSERT INTO locales (nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio, id_usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [nombre, descripcion, direccion, telefono || null, imagen_url || null, id_categoria, id_municipio, req.user.id]
     );
     res.status(201).json({ mensaje: 'Local creado con éxito', id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: 'Error al crear el local', detalles: err.message });
+  }
+});
+
+app.get('/api/locales/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query(
+      `SELECT l.*, c.nombre AS categoria, m.nombre AS municipio, m.departamento
+       FROM locales l
+       LEFT JOIN categorias c ON l.id_categoria = c.id_categoria
+       LEFT JOIN municipios m ON l.id_municipio = m.id_municipio
+       WHERE l.id_local = ?`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Local no encontrado' });
+    }
+    res.json({ local: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener el local', detalles: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// Calificaciones
+// -----------------------------------------------------------------------------
+app.get('/api/locales/:id/calificaciones', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [calificaciones] = await pool.query(
+      `SELECT r.*, u.nombre AS usuario
+       FROM calificaciones r
+       JOIN usuarios u ON r.id_usuario = u.id_usuario
+       WHERE r.id_local = ?
+       ORDER BY r.fecha DESC`,
+      [id]
+    );
+
+    const promedio = calificaciones.length
+      ? (calificaciones.reduce((suma, c) => suma + c.puntuacion, 0) / calificaciones.length).toFixed(1)
+      : null;
+
+    res.json({ calificaciones, promedio });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener calificaciones', detalles: err.message });
+  }
+});
+
+app.post('/api/locales/:id/calificaciones', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { puntuacion, comentario } = req.body;
+
+    const [localRows] = await pool.query('SELECT id_usuario FROM locales WHERE id_local = ?', [id]);
+    if (localRows.length === 0) {
+      return res.status(404).json({ error: 'Local no encontrado' });
+    }
+    if (localRows[0].id_usuario === req.user.id) {
+      return res.status(403).json({ error: 'No puedes calificar tu propio local' });
+    }
+
+    const [existente] = await pool.query(
+      'SELECT id_resena FROM calificaciones WHERE id_local = ? AND id_usuario = ?',
+      [id, req.user.id]
+    );
+    if (existente.length > 0) {
+      return res.status(400).json({ error: 'Ya calificaste este local' });
+    }
+
+    await pool.query(
+      'INSERT INTO calificaciones (id_local, id_usuario, puntuacion, comentario) VALUES (?, ?, ?, ?)',
+      [id, req.user.id, puntuacion, comentario || null]
+    );
+    res.status(201).json({ mensaje: 'Calificación enviada con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al enviar la calificación', detalles: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// Planes (promociones y eventos de un local)
+// -----------------------------------------------------------------------------
+app.get('/api/locales/:id/planes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [planes] = await pool.query(
+      `SELECT * FROM planes WHERE id_local = ? AND fecha_fin >= CURDATE() ORDER BY fecha_inicio ASC`,
+      [id]
+    );
+    res.json({ planes });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener planes', detalles: err.message });
+  }
+});
+
+const verificarDuenoDelLocal = async (idLocal, userId, rol) => {
+  if (rol === 'admin') return true;
+  const [rows] = await pool.query('SELECT id_usuario FROM locales WHERE id_local = ?', [idLocal]);
+  if (rows.length === 0) return false;
+  return rows[0].id_usuario === userId;
+};
+
+app.post('/api/locales/:id/planes', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url } = req.body;
+
+    const autorizado = await verificarDuenoDelLocal(id, req.user.id, req.user.rol);
+    if (!autorizado) {
+      return res.status(403).json({ error: 'No tienes permiso para crear planes en este local' });
+    }
+
+    const [result] = await pool.query(
+      'INSERT INTO planes (id_local, titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, titulo, descripcion || null, precio || 0, fecha_inicio, fecha_fin, imagen_url || null]
+    );
+    res.status(201).json({ mensaje: 'Plan creado con éxito', id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al crear el plan', detalles: err.message });
+  }
+});
+
+app.put('/api/planes/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url } = req.body;
+
+    const [rows] = await pool.query('SELECT id_local FROM planes WHERE id_plan = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Plan no encontrado' });
+    }
+
+    const autorizado = await verificarDuenoDelLocal(rows[0].id_local, req.user.id, req.user.rol);
+    if (!autorizado) {
+      return res.status(403).json({ error: 'No tienes permiso para editar este plan' });
+    }
+
+    await pool.query(
+      'UPDATE planes SET titulo = ?, descripcion = ?, precio = ?, fecha_inicio = ?, fecha_fin = ?, imagen_url = ? WHERE id_plan = ?',
+      [titulo, descripcion || null, precio || 0, fecha_inicio, fecha_fin, imagen_url || null, id]
+    );
+    res.json({ mensaje: 'Plan actualizado con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al actualizar el plan', detalles: err.message });
+  }
+});
+
+app.delete('/api/planes/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.query('SELECT id_local FROM planes WHERE id_plan = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Plan no encontrado' });
+    }
+
+    const autorizado = await verificarDuenoDelLocal(rows[0].id_local, req.user.id, req.user.rol);
+    if (!autorizado) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar este plan' });
+    }
+
+    await pool.query('DELETE FROM planes WHERE id_plan = ?', [id]);
+    res.json({ mensaje: 'Plan eliminado con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar el plan', detalles: err.message });
   }
 });
 

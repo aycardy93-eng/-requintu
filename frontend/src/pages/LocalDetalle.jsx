@@ -1,8 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FondoPagina from '../components/FondoPagina';
 
 const API_URL = 'http://localhost:3000/api';
+const BACKEND_ORIGIN = 'http://localhost:3000';
+
+const resolverImagenUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${BACKEND_ORIGIN}${url}`;
+};
+
+const estiloInput = {
+  width: '100%',
+  padding: '8px',
+  borderRadius: '6px',
+  border: '1px solid rgba(255,255,255,0.25)',
+  backgroundColor: 'rgba(255,255,255,0.95)',
+  color: '#12283d',
+};
+
+const estiloTarjeta = {
+  border: '1px solid rgba(255,255,255,0.15)',
+  background: 'rgba(18, 40, 61, 0.75)',
+  borderRadius: '8px',
+  padding: '15px',
+  marginBottom: '15px',
+};
 
 function LocalDetalle() {
   const { id } = useParams();
@@ -84,7 +109,7 @@ function LocalDetalle() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al enviar la calificación.');
+        throw new Error(data.error || 'Error al enviar la calificación.');
       }
 
       setComentario('');
@@ -125,10 +150,10 @@ function LocalDetalle() {
         const uploadData = await uploadRes.json();
 
         if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'Error al subir la imagen.');
+          throw new Error(uploadData.error || 'Error al subir la imagen.');
         }
 
-        imagen_url = uploadData.imagen_url;
+        imagen_url = uploadData.url;
       }
 
       const res = await fetch(`${API_URL}/locales/${id}/planes`, {
@@ -149,7 +174,7 @@ function LocalDetalle() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al crear el plan.');
+        throw new Error(data.error || 'Error al crear el plan.');
       }
 
       setExitoPlan('¡Promoción/evento creado con éxito!');
@@ -208,10 +233,10 @@ function LocalDetalle() {
         const uploadData = await uploadRes.json();
 
         if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'Error al subir la imagen.');
+          throw new Error(uploadData.error || 'Error al subir la imagen.');
         }
 
-        imagen_url = uploadData.imagen_url;
+        imagen_url = uploadData.url;
       }
 
       const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
@@ -232,7 +257,7 @@ function LocalDetalle() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al actualizar la promoción o evento.');
+        throw new Error(data.error || 'Error al actualizar la promoción o evento.');
       }
 
       cancelarEdicionPlan();
@@ -257,7 +282,7 @@ function LocalDetalle() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al eliminar la promoción o evento.');
+        throw new Error(data.error || 'Error al eliminar la promoción o evento.');
       }
 
       if (planEditando === plan.id_plan) {
@@ -270,32 +295,48 @@ function LocalDetalle() {
     }
   };
 
-  if (cargando) return <p style={{ padding: '20px' }}>Cargando...</p>;
-  if (error) return <p style={{ padding: '20px', color: 'red' }}>{error}</p>;
-  if (!local) return <p style={{ padding: '20px' }}>Local no encontrado.</p>;
+  if (cargando) return <FondoPagina><p style={{ padding: '20px' }}>Cargando...</p></FondoPagina>;
+  if (error) return <FondoPagina><p style={{ padding: '20px', color: '#ffb4b4' }}>{error}</p></FondoPagina>;
+  if (!local) return <FondoPagina><p style={{ padding: '20px' }}>Local no encontrado.</p></FondoPagina>;
 
   const puedeGestionarPlanes = usuarioActual && (
     local.id_usuario === usuarioActual.id || usuarioActual.rol === 'admin'
   );
 
   return (
-    <div style={{ maxWidth: '700px', margin: '30px auto', fontFamily: 'sans-serif', padding: '0 15px' }}>
-      <Link to="/locales">← Volver a locales</Link>
+    <FondoPagina>
+    {local.imagen_url ? (
+      <img
+        src={resolverImagenUrl(local.imagen_url)}
+        alt={local.nombre}
+        style={{
+          width: '100%',
+          height: '320px',
+          objectFit: 'cover',
+          objectPosition: 'center',
+          display: 'block',
+        }}
+      />
+    ) : (
+      <div
+        style={{
+          width: '100%',
+          height: '320px',
+          background: 'rgba(255,255,255,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#a9c9bb',
+        }}
+      >
+        Sin imagen
+      </div>
+    )}
+    <div style={{ maxWidth: '700px', margin: '0 auto', fontFamily: 'sans-serif', padding: '20px 15px 30px 15px' }}>
+      <Link to="/locales" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver a locales</Link>
 
-      {local.imagen_url ? (
-        <img
-          src={local.imagen_url}
-          alt={local.nombre}
-          style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', borderRadius: '8px', margin: '15px 0' }}
-        />
-      ) : (
-        <div style={{ width: '100%', height: '200px', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', borderRadius: '8px', margin: '15px 0' }}>
-          Sin imagen
-        </div>
-      )}
-
-      <h1 style={{ margin: '0 0 5px 0' }}>{local.nombre}</h1>
-      <p style={{ color: '#888', margin: '0 0 15px 0' }}>
+      <h1 style={{ margin: '15px 0 5px 0' }}>{local.nombre}</h1>
+      <p style={{ color: '#a9c9bb', margin: '0 0 15px 0' }}>
         {local.categoria || 'Sin categoría'} · {local.municipio || 'Sin municipio'}
       </p>
 
@@ -304,7 +345,7 @@ function LocalDetalle() {
       {local.direccion && <p><strong>Dirección:</strong> {local.direccion}</p>}
       {local.telefono && <p><strong>Teléfono:</strong> {local.telefono}</p>}
 
-      <hr style={{ margin: '25px 0' }} />
+      <hr style={{ margin: '25px 0', borderColor: 'rgba(255,255,255,0.15)' }} />
 
       {/* ===== PROMOCIONES / EVENTOS (PLANES) ===== */}
       <h2>Promociones y eventos</h2>
@@ -313,16 +354,16 @@ function LocalDetalle() {
         <p>Este local no tiene promociones o eventos activos por ahora.</p>
       ) : (
         planes.map((plan) => (
-          <div key={plan.id_plan} style={{ border: '1px solid #eee', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+          <div key={plan.id_plan} style={estiloTarjeta}>
             {planEditando === plan.id_plan ? (
               <form onSubmit={(e) => guardarEdicionPlan(e, plan)}>
                 <h3 style={{ marginTop: 0 }}>Editar promoción o evento</h3>
-                {errorEdicion && <p style={{ color: 'red' }}>{errorEdicion}</p>}
-                <input value={tituloEditado} onChange={(e) => setTituloEditado(e.target.value)} placeholder="Título" style={{ width: '100%', padding: '8px', marginBottom: '8px' }} />
-                <textarea value={descripcionEditada} onChange={(e) => setDescripcionEditada(e.target.value)} placeholder="Descripción" style={{ width: '100%', padding: '8px', minHeight: '60px', marginBottom: '8px' }} />
+                {errorEdicion && <p style={{ color: '#ffb4b4' }}>{errorEdicion}</p>}
+                <input value={tituloEditado} onChange={(e) => setTituloEditado(e.target.value)} placeholder="Título" style={{ ...estiloInput, marginBottom: '8px' }} />
+                <textarea value={descripcionEditada} onChange={(e) => setDescripcionEditada(e.target.value)} placeholder="Descripción" style={{ ...estiloInput, minHeight: '60px', marginBottom: '8px' }} />
                 <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                  <input type="date" value={fechaInicioEditada} onChange={(e) => setFechaInicioEditada(e.target.value)} style={{ flex: 1, padding: '8px' }} />
-                  <input type="date" value={fechaFinEditada} onChange={(e) => setFechaFinEditada(e.target.value)} style={{ flex: 1, padding: '8px' }} />
+                  <input type="date" value={fechaInicioEditada} onChange={(e) => setFechaInicioEditada(e.target.value)} style={{ ...estiloInput, flex: 1 }} />
+                  <input type="date" value={fechaFinEditada} onChange={(e) => setFechaFinEditada(e.target.value)} style={{ ...estiloInput, flex: 1 }} />
                 </div>
                 <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => setImagenEditadaFile(e.target.files[0])} style={{ marginBottom: '10px' }} />
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -334,14 +375,14 @@ function LocalDetalle() {
               <>
                 {plan.imagen_url && (
                   <img
-                    src={plan.imagen_url}
+                    src={resolverImagenUrl(plan.imagen_url)}
                     alt={plan.titulo}
                     style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '6px', marginBottom: '10px' }}
                   />
                 )}
                 <h3 style={{ margin: '0 0 5px 0' }}>{plan.titulo}</h3>
                 {plan.descripcion && <p style={{ margin: '0 0 5px 0' }}>{plan.descripcion}</p>}
-                <p style={{ margin: 0, fontSize: '13px', color: '#888' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#a9c9bb' }}>
                   Vigente del {new Date(plan.fecha_inicio).toLocaleDateString('es-CO')} al {new Date(plan.fecha_fin).toLocaleDateString('es-CO')}
                 </p>
                 {puedeGestionarPlanes && (
@@ -349,7 +390,7 @@ function LocalDetalle() {
                     <button type="button" onClick={() => iniciarEdicionPlan(plan)}>
                       Editar
                     </button>
-                    <button type="button" onClick={() => eliminarPlan(plan)} style={{ color: '#b00020' }}>
+                    <button type="button" onClick={() => eliminarPlan(plan)} style={{ color: '#ff8080' }}>
                       Eliminar
                     </button>
                   </div>
@@ -361,14 +402,14 @@ function LocalDetalle() {
       )}
 
       {puedeGestionarPlanes && (
-        <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #aaa', borderRadius: '8px' }}>
+        <div style={{ ...estiloTarjeta, borderStyle: 'dashed', marginTop: '20px' }}>
           <h3 style={{ marginTop: 0 }}>Crear nueva promoción o evento</h3>
 
           {errorPlan && (
-            <p style={{ color: 'red', background: '#fee', padding: '8px' }}>{errorPlan}</p>
+            <p style={{ color: '#ffb4b4', background: 'rgba(255,180,180,0.12)', padding: '8px', borderRadius: '6px' }}>{errorPlan}</p>
           )}
           {exitoPlan && (
-            <p style={{ color: 'green', background: '#efe', padding: '8px' }}>{exitoPlan}</p>
+            <p style={{ color: '#a9f0b4', background: 'rgba(169,240,180,0.12)', padding: '8px', borderRadius: '6px' }}>{exitoPlan}</p>
           )}
 
           <form onSubmit={handleCrearPlan}>
@@ -378,7 +419,7 @@ function LocalDetalle() {
                 type="text"
                 value={tituloPlan}
                 onChange={(e) => setTituloPlan(e.target.value)}
-                style={{ width: '100%', padding: '8px' }}
+                style={estiloInput}
               />
             </div>
 
@@ -387,7 +428,7 @@ function LocalDetalle() {
               <textarea
                 value={descripcionPlan}
                 onChange={(e) => setDescripcionPlan(e.target.value)}
-                style={{ width: '100%', padding: '8px', minHeight: '60px' }}
+                style={{ ...estiloInput, minHeight: '60px' }}
               />
             </div>
 
@@ -398,7 +439,7 @@ function LocalDetalle() {
                   type="date"
                   value={fechaInicioPlan}
                   onChange={(e) => setFechaInicioPlan(e.target.value)}
-                  style={{ width: '100%', padding: '8px' }}
+                  style={estiloInput}
                 />
               </div>
               <div style={{ flex: 1 }}>
@@ -407,7 +448,7 @@ function LocalDetalle() {
                   type="date"
                   value={fechaFinPlan}
                   onChange={(e) => setFechaFinPlan(e.target.value)}
-                  style={{ width: '100%', padding: '8px' }}
+                  style={estiloInput}
                 />
               </div>
             </div>
@@ -422,14 +463,18 @@ function LocalDetalle() {
               />
             </div>
 
-            <button type="submit" disabled={enviandoPlan} style={{ padding: '10px 20px' }}>
+            <button
+              type="submit"
+              disabled={enviandoPlan}
+              style={{ padding: '10px 20px', background: '#ccff00', color: '#0284c7', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
               {enviandoPlan ? 'Creando...' : 'Crear promoción/evento'}
             </button>
           </form>
         </div>
       )}
 
-      <hr style={{ margin: '25px 0' }} />
+      <hr style={{ margin: '25px 0', borderColor: 'rgba(255,255,255,0.15)' }} />
 
       {/* ===== CALIFICACIONES ===== */}
       <h2>
@@ -437,16 +482,21 @@ function LocalDetalle() {
       </h2>
 
       {(() => {
+        const esDueño = usuarioActual && local.id_usuario === usuarioActual.id;
         const yaCalifico = usuarioActual && calificaciones.some((c) => c.id_usuario === usuarioActual.id);
 
+        if (esDueño) {
+          return <p style={{ color: '#a9c9bb' }}>No puedes calificar tu propio local.</p>;
+        }
+
         if (yaCalifico) {
-          return <p style={{ color: '#666' }}>Ya calificaste este local. ¡Gracias por tu opinión!</p>;
+          return <p style={{ color: '#a9c9bb' }}>Ya calificaste este local. ¡Gracias por tu opinión!</p>;
         }
 
         return isAuthenticated ? (
           <form onSubmit={handleCalificar} style={{ marginBottom: '25px' }}>
             {errorCalificacion && (
-              <p style={{ color: 'red', background: '#fee', padding: '8px' }}>{errorCalificacion}</p>
+              <p style={{ color: '#ffb4b4', background: 'rgba(255,180,180,0.12)', padding: '8px', borderRadius: '6px' }}>{errorCalificacion}</p>
             )}
 
             <div style={{ marginBottom: '10px' }}>
@@ -454,7 +504,7 @@ function LocalDetalle() {
               <select
                 value={puntuacion}
                 onChange={(e) => setPuntuacion(e.target.value)}
-                style={{ padding: '8px' }}
+                style={{ ...estiloInput, width: 'auto', padding: '8px' }}
               >
                 <option value={5}>5 - Excelente</option>
                 <option value={4}>4 - Muy bueno</option>
@@ -469,17 +519,21 @@ function LocalDetalle() {
               <textarea
                 value={comentario}
                 onChange={(e) => setComentario(e.target.value)}
-                style={{ width: '100%', padding: '8px', minHeight: '60px' }}
+                style={{ ...estiloInput, minHeight: '60px' }}
               />
             </div>
 
-            <button type="submit" disabled={enviando} style={{ padding: '10px 20px' }}>
+            <button
+              type="submit"
+              disabled={enviando}
+              style={{ padding: '10px 20px', background: '#ccff00', color: '#0284c7', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
               {enviando ? 'Enviando...' : 'Enviar calificación'}
             </button>
           </form>
         ) : (
           <p>
-            <Link to="/login">Inicia sesión</Link> para calificar este local.
+            <Link to="/login" style={{ color: '#ccff00', fontWeight: 'bold' }}>Inicia sesión</Link> para calificar este local.
           </p>
         );
       })()}
@@ -488,13 +542,14 @@ function LocalDetalle() {
         <p>Este local aún no tiene calificaciones.</p>
       ) : (
         calificaciones.map((c) => (
-          <div key={c.id_resena} style={{ borderBottom: '1px solid #eee', padding: '10px 0' }}>
+          <div key={c.id_resena} style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', padding: '10px 0' }}>
             <strong>{c.usuario}</strong> — {c.puntuacion} ⭐
             {c.comentario && <p style={{ margin: '5px 0 0 0' }}>{c.comentario}</p>}
           </div>
         ))
       )}
     </div>
+    </FondoPagina>
   );
 }
 

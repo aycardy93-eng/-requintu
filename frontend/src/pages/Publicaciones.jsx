@@ -196,7 +196,7 @@ function Publicaciones() {
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', padding: '30px 15px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Publicaciones</h1>
-        <Link to="/">← Volver</Link>
+        <Link to="/" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver</Link>
       </div>
 
       {/* Formulario de nueva publicación */}
@@ -226,7 +226,7 @@ function Publicaciones() {
         </form>
       ) : (
         <p style={{ marginBottom: '25px' }}>
-          <Link to="/login">Inicia sesión</Link> para crear una publicación.
+          <Link to="/login" style={{ color: '#ccff00', fontWeight: 'bold' }}>Inicia sesión</Link> para crear una publicación.
         </p>
       )}
 
