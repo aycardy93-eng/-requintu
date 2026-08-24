@@ -3,17 +3,23 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Crear pool de conexiones
-const pool = mysql.createPool({
+const configuracion = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'requintu_db',
 
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
   queueLimit: 0
-});
+};
+
+// Las BD de MySQL administradas en la nube (Aiven, TiDB, etc.) exigen TLS
+if (process.env.DB_SSL === 'true') {
+  configuracion.ssl = { minVersion: 'TLSv1.2' };
+}
+
+const pool = mysql.createPool(configuracion);
 
 // Verificar conexión a MySQL
 export const checkDatabaseHealth = async () => {
