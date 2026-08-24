@@ -401,6 +401,34 @@ const verificarDuenoDelLocal = async (idLocal, userId, rol) => {
   return rows[0].id_usuario === userId;
 };
 
+const verificarPermisoPlan = async (idPlan, req, res, accion) => {
+  const [rows] = await pool.query('SELECT id_local FROM planes WHERE id_plan = ?', [idPlan]);
+  if (rows.length === 0) {
+    res.status(404).json({ error: 'Plan no encontrado' });
+    return false;
+  }
+  const autorizado = await verificarDuenoDelLocal(rows[0].id_local, req.user.id, req.user.rol);
+  if (!autorizado) {
+    res.status(403).json({ error: `No tienes permiso para ${accion} este plan` });
+    return false;
+  }
+  return true;
+};
+
+const verificarPermisoPublicacion = async (idPublicacion, req, res, accion) => {
+  const [rows] = await pool.query('SELECT usuario_id FROM publicaciones WHERE id = ?', [idPublicacion]);
+  if (rows.length === 0) {
+    res.status(404).json({ error: 'Publicación no encontrada' });
+    return false;
+  }
+  const esDueño = rows[0].usuario_id === req.user.id;
+  if (!esDueño && req.user.rol !== 'admin') {
+    res.status(403).json({ error: `No tienes permiso para ${accion} esta publicación` });
+    return false;
+  }
+  return true;
+};
+
 app.post('/api/locales/:id/planes', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -427,15 +455,7 @@ app.put('/api/planes/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url } = req.body;
 
-    const [rows] = await pool.query('SELECT id_local FROM planes WHERE id_plan = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Plan no encontrado' });
-    }
-
-    const autorizado = await verificarDuenoDelLocal(rows[0].id_local, req.user.id, req.user.rol);
-    if (!autorizado) {
-      return res.status(403).json({ error: 'No tienes permiso para editar este plan' });
-    }
+    if (!(await verificarPermisoPlan(id, req, res, 'editar'))) return;
 
     await pool.query(
       'UPDATE planes SET titulo = ?, descripcion = ?, precio = ?, fecha_inicio = ?, fecha_fin = ?, imagen_url = ? WHERE id_plan = ?',
@@ -452,15 +472,7 @@ app.delete('/api/planes/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [rows] = await pool.query('SELECT id_local FROM planes WHERE id_plan = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Plan no encontrado' });
-    }
-
-    const autorizado = await verificarDuenoDelLocal(rows[0].id_local, req.user.id, req.user.rol);
-    if (!autorizado) {
-      return res.status(403).json({ error: 'No tienes permiso para eliminar este plan' });
-    }
+    if (!(await verificarPermisoPlan(id, req, res, 'eliminar'))) return;
 
     await pool.query('DELETE FROM planes WHERE id_plan = ?', [id]);
     res.json({ mensaje: 'Plan eliminado con éxito' });
@@ -512,16 +524,7 @@ app.put('/api/publicaciones/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { contenido, imagen_url } = req.body;
 
-    const [rows] = await pool.query('SELECT usuario_id FROM publicaciones WHERE id = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Publicación no encontrada' });
-    }
-
-    const esDueño = rows[0].usuario_id === req.user.id;
-    const esAdmin = req.user.rol === 'admin';
-    if (!esDueño && !esAdmin) {
-      return res.status(403).json({ error: 'No tienes permiso para editar esta publicación' });
-    }
+    if (!(await verificarPermisoPublicacion(id, req, res, 'editar'))) return;
 
     await pool.query(
       'UPDATE publicaciones SET contenido = ?, imagen_url = ? WHERE id = ?',
@@ -538,16 +541,7 @@ app.delete('/api/publicaciones/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [rows] = await pool.query('SELECT usuario_id FROM publicaciones WHERE id = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Publicación no encontrada' });
-    }
-
-    const esDueño = rows[0].usuario_id === req.user.id;
-    const esAdmin = req.user.rol === 'admin';
-    if (!esDueño && !esAdmin) {
-      return res.status(403).json({ error: 'No tienes permiso para eliminar esta publicación' });
-    }
+    if (!(await verificarPermisoPublicacion(id, req, res, 'eliminar'))) return;
 
     await pool.query('DELETE FROM publicaciones WHERE id = ?', [id]);
     res.json({ mensaje: 'Publicación eliminada con éxito' });
