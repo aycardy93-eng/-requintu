@@ -16,7 +16,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro_123';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error('JWT_SECRET no está definido. Configúralo en el archivo .env antes de iniciar el servidor.');
+  process.exit(1);
+}
 
 // -----------------------------------------------------------------------------
 // Middlewares Globales
@@ -98,7 +103,8 @@ const checkRole = (roles) => {
 app.post('/api/register', async (req, res) => {
   try {
     const { nombre, email, password, rol } = req.body;
-    const rolUsuario = rol || 'turista';
+    const rolesValidos = ['turista', 'comerciante'];
+    const rolUsuario = rolesValidos.includes(rol) ? rol : 'turista';
 
     const [existing] = await pool.query('SELECT id_usuario FROM usuarios WHERE email = ?', [email]);
     if (existing.length > 0) {
@@ -113,7 +119,8 @@ app.post('/api/register', async (req, res) => {
 
     res.status(201).json({ mensaje: 'Usuario registrado con éxito', usuarioId: result.insertId });
   } catch (err) {
-    res.status(500).json({ error: 'Error al registrar el usuario', detalles: err.message });
+    console.error('Error al registrar el usuario:', err.message);
+    res.status(500).json({ error: 'Error al registrar el usuario' });
   }
 });
 
@@ -123,13 +130,13 @@ app.post('/api/login', async (req, res) => {
     const [users] = await pool.query('SELECT * FROM usuarios WHERE email = ?', [email]);
 
     if (users.length === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+      return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
     const user = users[0];
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return res.status(401).json({ error: 'Contraseña incorrecta' });
+      return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
     const payload = { id: user.id_usuario, nombre: user.nombre, rol: user.rol };
@@ -137,7 +144,8 @@ app.post('/api/login', async (req, res) => {
 
     res.json({ token, user: { id: user.id_usuario, nombre: user.nombre, email: user.email, rol: user.rol } });
   } catch (err) {
-    res.status(500).json({ error: 'Error en la autenticación', detalles: err.message });
+    console.error('Error en la autenticación:', err.message);
+    res.status(500).json({ error: 'Error en la autenticación' });
   }
 });
 
@@ -149,7 +157,8 @@ app.get('/api/perfil', authMiddleware, async (req, res) => {
     }
     res.json(users[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener perfil', detalles: err.message });
+    console.error('Error al obtener perfil:', err.message);
+    res.status(500).json({ error: 'Error al obtener perfil' });
   }
 });
 
@@ -161,7 +170,8 @@ app.get('/api/municipios', async (req, res) => {
     const [municipios] = await pool.query('SELECT * FROM municipios ORDER BY nombre ASC');
     res.json(municipios);
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener municipios', detalles: err.message });
+    console.error('Error al obtener municipios:', err.message);
+    res.status(500).json({ error: 'Error al obtener municipios' });
   }
 });
 
@@ -170,7 +180,8 @@ app.get('/api/categorias', async (req, res) => {
     const [categorias] = await pool.query('SELECT * FROM categorias ORDER BY nombre ASC');
     res.json(categorias);
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener categorías', detalles: err.message });
+    console.error('Error al obtener categorías:', err.message);
+    res.status(500).json({ error: 'Error al obtener categorías' });
   }
 });
 
@@ -187,7 +198,8 @@ app.get('/api/departamentos', async (req, res) => {
     `);
     res.json({ departamentos });
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener departamentos', detalles: err.message });
+    console.error('Error al obtener departamentos:', err.message);
+    res.status(500).json({ error: 'Error al obtener departamentos' });
   }
 });
 
@@ -200,7 +212,8 @@ app.get('/api/departamentos/:nombre/municipios', async (req, res) => {
     );
     res.json({ municipios });
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener municipios', detalles: err.message });
+    console.error('Error al obtener municipios:', err.message);
+    res.status(500).json({ error: 'Error al obtener municipios' });
   }
 });
 
@@ -245,7 +258,8 @@ app.get('/api/locales', async (req, res) => {
     const [locales] = await pool.query(query, params);
     res.json({ locales });
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener locales', detalles: err.message });
+    console.error('Error al obtener locales:', err.message);
+    res.status(500).json({ error: 'Error al obtener locales' });
   }
 });
 
@@ -258,7 +272,8 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), as
     );
     res.status(201).json({ mensaje: 'Local creado con éxito', id: result.insertId });
   } catch (err) {
-    res.status(500).json({ error: 'Error al crear el local', detalles: err.message });
+    console.error('Error al crear el local:', err.message);
+    res.status(500).json({ error: 'Error al crear el local' });
   }
 });
 
@@ -278,7 +293,8 @@ app.get('/api/locales/:id', async (req, res) => {
     }
     res.json({ local: rows[0] });
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener el local', detalles: err.message });
+    console.error('Error al obtener el local:', err.message);
+    res.status(500).json({ error: 'Error al obtener el local' });
   }
 });
 
@@ -303,7 +319,8 @@ app.get('/api/locales/:id/calificaciones', async (req, res) => {
 
     res.json({ calificaciones, promedio });
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener calificaciones', detalles: err.message });
+    console.error('Error al obtener calificaciones:', err.message);
+    res.status(500).json({ error: 'Error al obtener calificaciones' });
   }
 });
 
@@ -334,7 +351,8 @@ app.post('/api/locales/:id/calificaciones', authMiddleware, async (req, res) => 
     );
     res.status(201).json({ mensaje: 'Calificación enviada con éxito' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al enviar la calificación', detalles: err.message });
+    console.error('Error al enviar la calificación:', err.message);
+    res.status(500).json({ error: 'Error al enviar la calificación' });
   }
 });
 
@@ -350,7 +368,8 @@ app.get('/api/locales/:id/planes', async (req, res) => {
     );
     res.json({ planes });
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener planes', detalles: err.message });
+    console.error('Error al obtener planes:', err.message);
+    res.status(500).json({ error: 'Error al obtener planes' });
   }
 });
 
@@ -377,7 +396,8 @@ app.post('/api/locales/:id/planes', authMiddleware, async (req, res) => {
     );
     res.status(201).json({ mensaje: 'Plan creado con éxito', id: result.insertId });
   } catch (err) {
-    res.status(500).json({ error: 'Error al crear el plan', detalles: err.message });
+    console.error('Error al crear el plan:', err.message);
+    res.status(500).json({ error: 'Error al crear el plan' });
   }
 });
 
@@ -402,7 +422,8 @@ app.put('/api/planes/:id', authMiddleware, async (req, res) => {
     );
     res.json({ mensaje: 'Plan actualizado con éxito' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar el plan', detalles: err.message });
+    console.error('Error al actualizar el plan:', err.message);
+    res.status(500).json({ error: 'Error al actualizar el plan' });
   }
 });
 
@@ -423,7 +444,8 @@ app.delete('/api/planes/:id', authMiddleware, async (req, res) => {
     await pool.query('DELETE FROM planes WHERE id_plan = ?', [id]);
     res.json({ mensaje: 'Plan eliminado con éxito' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al eliminar el plan', detalles: err.message });
+    console.error('Error al eliminar el plan:', err.message);
+    res.status(500).json({ error: 'Error al eliminar el plan' });
   }
 });
 
@@ -440,11 +462,12 @@ app.get('/api/publicaciones', async (req, res) => {
     `);
     res.json({ publicaciones });
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener publicaciones', detalles: err.message });
+    console.error('Error al obtener publicaciones:', err.message);
+    res.status(500).json({ error: 'Error al obtener publicaciones' });
   }
 });
 
-app.post('/api/publicaciones', authMiddleware, async (req, res) => {
+app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), async (req, res) => {
   try {
     const { contenido, imagen_url } = req.body;
 
@@ -458,7 +481,8 @@ app.post('/api/publicaciones', authMiddleware, async (req, res) => {
     );
     res.status(201).json({ mensaje: 'Publicación creada con éxito', id: result.insertId });
   } catch (err) {
-    res.status(500).json({ error: 'Error al crear publicación', detalles: err.message });
+    console.error('Error al crear publicación:', err.message);
+    res.status(500).json({ error: 'Error al crear publicación' });
   }
 });
 
@@ -484,7 +508,8 @@ app.put('/api/publicaciones/:id', authMiddleware, async (req, res) => {
     );
     res.json({ mensaje: 'Publicación actualizada con éxito' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar publicación', detalles: err.message });
+    console.error('Error al actualizar publicación:', err.message);
+    res.status(500).json({ error: 'Error al actualizar publicación' });
   }
 });
 
@@ -506,7 +531,8 @@ app.delete('/api/publicaciones/:id', authMiddleware, async (req, res) => {
     await pool.query('DELETE FROM publicaciones WHERE id = ?', [id]);
     res.json({ mensaje: 'Publicación eliminada con éxito' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al eliminar publicación', detalles: err.message });
+    console.error('Error al eliminar publicación:', err.message);
+    res.status(500).json({ error: 'Error al eliminar publicación' });
   }
 });
 
@@ -520,7 +546,8 @@ app.use((err, req, res, next) => {
     }
     return res.status(400).json({ error: err.message });
   }
-  res.status(500).json({ error: err.message || 'Error interno del servidor' });
+  console.error('Error no controlado:', err);
+  res.status(500).json({ error: 'Error interno del servidor' });
 });
 
 async function arrancarServidor() {

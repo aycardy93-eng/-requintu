@@ -9,10 +9,31 @@ export default function Register() {
   const [role, setRole] = useState('Viajero');
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (name && email && password) {
+    if (!name || !email || !password) return;
+
+    const rol = role === 'Propietario' ? 'comerciante' : 'turista';
+
+    try {
+      const response = await fetch('http://localhost:3000/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: name, email, password, rol }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || 'No se pudo completar el registro');
+        return;
+      }
+
+      alert(data.mensaje);
       navigate('/login');
+    } catch (error) {
+      console.error('Error al registrarse:', error);
+      alert('No se pudo conectar con el servidor');
     }
   };
 
