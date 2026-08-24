@@ -285,13 +285,39 @@ app.get('/api/departamentos/:nombre/municipios', async (req, res) => {
   }
 });
 
+const verificarFirmaImagen = async (ruta) => {
+  try {
+    const manejador = await fs.promises.open(ruta, 'r');
+    const buffer = Buffer.alloc(12);
+    await manejador.read(buffer, 0, 12, 0);
+    await manejador.close();
+
+    const esJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    const esPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    const esWebp =
+      buffer.subarray(0, 4).toString('latin1') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('latin1') === 'WEBP';
+
+    return esJpeg || esPng || esWebp;
+  } catch {
+    return false;
+  }
+};
+
 // -----------------------------------------------------------------------------
 // Subida de Archivos
 // -----------------------------------------------------------------------------
-app.post('/api/upload', authMiddleware, upload.single('imagen'), (req, res) => {
+app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Por favor selecciona un archivo' });
   }
+
+  const firmaValida = await verificarFirmaImagen(req.file.path);
+  if (!firmaValida) {
+    await fs.promises.unlink(req.file.path).catch(() => {});
+    return res.status(400).json({ error: 'El archivo no es una imagen válida' });
+  }
+
   res.json({ mensaje: 'Imagen subida correctamente', url: `/uploads/${req.file.filename}` });
 });
 
