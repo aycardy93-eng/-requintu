@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { API_URL } from '../config';
 
-// Línea 3 de src/context/AuthContext.jsx:
 export const AuthContext = createContext();
 
-// Lee el payload de un JWT en formato Base64URL. La seguridad real siempre se valida en el backend.
 function decodificarToken(token) {
   try {
     const payload = token?.split('.')[1];
@@ -28,22 +27,49 @@ function decodificarToken(token) {
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('token') || null);
+  const [token, setToken] = useState(null);
+  const [cargandoSesion, setCargandoSesion] = useState(true);
   const usuario = useMemo(() => decodificarToken(token), [token]);
 
+  // Al montar, restaura la sesión con la cookie httpOnly (el access token
+  // vive solo en memoria: nunca se guarda en localStorage ni cookies legibles).
   useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token);
-    } else {
-      localStorage.removeItem('token');
-    }
-  }, [token]);
+    let cancelado = false;
+
+    fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelado && data?.token) {
+          setToken(data.token);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelado) setCargandoSesion(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const login = (nuevoToken) => setToken(nuevoToken);
-  const logout = () => setToken(null);
+
+  const logout = async () => {
+    setToken(null);
+    await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    }).catch(() => {});
+  };
 
   return (
-    <AuthContext.Provider value={{ token, usuario, login, logout, isAuthenticated: !!usuario }}>
+    <AuthContext.Provider
+      value={{ token, usuario, cargandoSesion, login, logout, isAuthenticated: !!usuario }}
+    >
       {children}
     </AuthContext.Provider>
   );

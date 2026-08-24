@@ -10,6 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { body, validationResult } from 'express-validator';
+import cookieParser from 'cookie-parser';
+import crypto from 'crypto';
 import pool, { checkDatabaseHealth } from './db.js';
 
 dotenv.config();
@@ -46,9 +48,11 @@ app.use(cors({
       return callback(null, true);
     }
     callback(null, false);
-  }
+  },
+  credentials: true
 }));
 app.use(express.json());
+app.use(cookieParser());
 
 if (esProduccion) {
   app.use((req, res, next) => {
@@ -159,6 +163,27 @@ const checkRole = (roles) => {
 };
 
 // -----------------------------------------------------------------------------
+// Refresh Tokens (cookie httpOnly)
+// -----------------------------------------------------------------------------
+const COOKIE_OPCIONES = {
+  httpOnly: true,
+  secure: esProduccion,
+  sameSite: 'lax',
+  path: '/api/auth'
+};
+
+const hashRefreshToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+async function emitirRefreshToken(idUsuario, res) {
+  const token = crypto.randomBytes(64).toString('hex');
+  await pool.query(
+    'INSERT INTO refresh_tokens (id_usuario, token_hash, expira_en) VALUES (?, ?, ?)',
+    [idUsuario, hashRefreshToken(token), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+  );
+  res.cookie('refresh_token', token, { ...COOKIE_OPCIONES, maxAge: 7 * 24 * 60 * 60 * 1000 });
+}
+
+// -----------------------------------------------------------------------------
 // Rutas de Autenticación y Perfil
 // -----------------------------------------------------------------------------
 app.post('/api/register', validar([
@@ -208,12 +233,72 @@ app.post('/api/login', validar([
     }
 
     const payload = { id: user.id_usuario, nombre: user.nombre, rol: user.rol };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+
+    await emitirRefreshToken(user.id_usuario, res);
 
     res.json({ token, user: { id: user.id_usuario, nombre: user.nombre, email: user.email, rol: user.rol } });
   } catch (err) {
     console.error('Error en la autenticación:', err.message);
     res.status(500).json({ error: 'Error en la autenticación' });
+  }
+});
+
+app.post('/api/auth/refresh', async (req, res) => {
+  try {
+    const token = req.cookies?.refresh_token;
+    if (!token) {
+      return res.status(401).json({ error: 'No hay sesión para renovar' });
+    }
+
+    await pool.query('DELETE FROM refresh_tokens WHERE expira_en < NOW()');
+
+    const [filas] = await pool.query(
+      'SELECT id, id_usuario FROM refresh_tokens WHERE token_hash = ? AND revocado = 0 AND expira_en > NOW()',
+      [hashRefreshToken(token)]
+    );
+    if (filas.length === 0) {
+      res.clearCookie('refresh_token', COOKIE_OPCIONES);
+      return res.status(401).json({ error: 'Sesión inválida o expirada' });
+    }
+
+    const [usuarios] = await pool.query(
+      'SELECT id_usuario, nombre, email, rol FROM usuarios WHERE id_usuario = ?',
+      [filas[0].id_usuario]
+    );
+    if (usuarios.length === 0) {
+      res.clearCookie('refresh_token', COOKIE_OPCIONES);
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuario = usuarios[0];
+
+    await pool.query('UPDATE refresh_tokens SET revocado = 1 WHERE id = ?', [filas[0].id]);
+    await emitirRefreshToken(usuario.id_usuario, res);
+
+    const nuevoToken = jwt.sign(
+      { id: usuario.id_usuario, nombre: usuario.nombre, rol: usuario.rol },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    res.json({ token: nuevoToken, user: { id: usuario.id_usuario, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol } });
+  } catch (err) {
+    console.error('Error al renovar la sesión:', err.message);
+    res.status(500).json({ error: 'Error al renovar la sesión' });
+  }
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const token = req.cookies?.refresh_token;
+    if (token) {
+      await pool.query('UPDATE refresh_tokens SET revocado = 1 WHERE token_hash = ?', [hashRefreshToken(token)]);
+    }
+    res.clearCookie('refresh_token', COOKIE_OPCIONES);
+    res.json({ mensaje: 'Sesión cerrada con éxito' });
+  } catch (err) {
+    console.error('Error al cerrar la sesión:', err.message);
+    res.status(500).json({ error: 'Error al cerrar la sesión' });
   }
 });
 

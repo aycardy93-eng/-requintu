@@ -228,3 +228,48 @@ test('upload acepta un JPEG genuino', async () => {
   const { unlink } = await import('fs/promises');
   await unlink(rutaArchivo).catch(() => {});
 });
+
+test('refresh sin cookie devuelve 401', async () => {
+  const res = await fetch(`${base}/api/auth/refresh`, { method: 'POST' });
+  assert.equal(res.status, 401);
+});
+
+test('flujo completo de refresh token con rotacion y revocacion', async () => {
+  const credenciales = await registrarUsuario();
+
+  const loginRes = await login(credenciales.email, credenciales.password);
+  assert.equal(loginRes.status, 200);
+
+  const setCookies = loginRes.headers.getSetCookie();
+  const cookieSesion = setCookies.find((c) => c.startsWith('refresh_token='));
+  assert.ok(cookieSesion, 'el login debe emitir la cookie refresh_token');
+  assert.match(cookieSesion, /HttpOnly/i, 'la cookie debe ser httpOnly');
+  assert.match(cookieSesion, /Path=\/api\/auth/i);
+
+  const valorPrimeraCookie = cookieSesion.split(';')[0];
+
+  const refresh1 = await fetch(`${base}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { Cookie: valorPrimeraCookie }
+  });
+  assert.equal(refresh1.status, 200);
+  const cuerpoRefresh = await refresh1.json();
+  assert.ok(cuerpoRefresh.token);
+  assert.equal(cuerpoRefresh.user.email, credenciales.email);
+
+  const cookiesRotadas = refresh1.headers.getSetCookie();
+  const cookieNueva = cookiesRotadas.find((c) => c.startsWith('refresh_token='))?.split(';')[0];
+  assert.ok(cookieNueva && cookieNueva !== valorPrimeraCookie, 'el refresh token debe rotar en cada uso');
+
+  const logoutRes = await fetch(`${base}/api/auth/logout`, {
+    method: 'POST',
+    headers: { Cookie: cookieNueva }
+  });
+  assert.equal(logoutRes.status, 200);
+
+  const refreshTrasLogout = await fetch(`${base}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { Cookie: cookieNueva }
+  });
+  assert.equal(refreshTrasLogout.status, 401, 'tras el logout el refresh debe estar revocado');
+});
