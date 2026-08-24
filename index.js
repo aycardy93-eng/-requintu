@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { body, validationResult } from 'express-validator';
@@ -62,7 +62,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 300,
+  limit: Number(process.env.RATE_LIMIT_API_MAX) || 300,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde' }
@@ -70,7 +70,7 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: Number(process.env.RATE_LIMIT_AUTH_MAX) || 10,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Demasiados intentos. Espera 15 minutos antes de volver a intentarlo' }
@@ -681,4 +681,10 @@ async function arrancarServidor() {
   }
 }
 
-arrancarServidor();
+const esModuloPrincipal = import.meta.url === pathToFileURL(process.argv[1] || '').href;
+
+if (esModuloPrincipal) {
+  arrancarServidor();
+}
+
+export default app;
