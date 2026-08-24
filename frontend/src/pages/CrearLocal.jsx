@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
-
-const API_URL = 'http://localhost:3000/api';
+import { API_URL } from '../config';
 
 function CrearLocal() {
   const { token } = useAuth();

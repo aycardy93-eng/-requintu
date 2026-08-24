@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import mapaSvgRaw from '../assets/co-departamentos.svg?raw';
 import fondoMar from '../assets/fondo-mapa.jpg';
-
-const API_URL = 'http://localhost:3000/api';
+import { API_URL } from '../config';
 
 // Mapea el id de cada <path> del SVG (simplemaps.com) al nombre EXACTO
 // que usa la columna `departamento` en la tabla `municipios` de tu base de datos.

@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
-
-const API_URL = 'http://localhost:3000/api';
-const BACKEND_ORIGIN = 'http://localhost:3000';
+import BACKEND_ORIGIN, { API_URL } from '../config';
 
 // Las imágenes subidas se guardan como ruta relativa (/uploads/archivo.jpg).
 // El frontend corre en otro puerto (5173), así que hay que completar la URL

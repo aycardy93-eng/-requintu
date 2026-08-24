@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import FondoPagina from '../components/FondoPagina';
-
-const API_URL = 'http://localhost:3000/api';
-const BACKEND_ORIGIN = 'http://localhost:3000';
+import BACKEND_ORIGIN, { API_URL } from '../config';
 
 const resolverImagenUrl = (url) => {
   if (!url) return null;

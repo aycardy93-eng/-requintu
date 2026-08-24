@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import fondoRegisterImg from '../assets/registro-fondo.jpg';
+import { API_URL } from '../config';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -16,7 +17,7 @@ export default function Register() {
     const rol = role === 'Propietario' ? 'comerciante' : 'turista';
 
     try {
-      const response = await fetch('http://localhost:3000/api/register', {
+      const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre: name, email, password, rol }),
