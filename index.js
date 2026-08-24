@@ -8,6 +8,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import { body, validationResult } from 'express-validator';
 import pool, { checkDatabaseHealth } from './db.js';
 
 dotenv.config();
@@ -27,7 +29,17 @@ if (!JWT_SECRET) {
 // -----------------------------------------------------------------------------
 // Middlewares Globales
 // -----------------------------------------------------------------------------
-app.use(cors());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173').split(',');
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(null, false);
+  }
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -50,6 +62,17 @@ const authLimiter = rateLimit({
 app.use('/api', apiLimiter);
 app.use('/api/login', authLimiter);
 app.use('/api/register', authLimiter);
+
+const validar = (validaciones) => [
+  ...validaciones,
+  (req, res, next) => {
+    const errores = validationResult(req);
+    if (!errores.isEmpty()) {
+      return res.status(400).json({ error: errores.array()[0].msg });
+    }
+    next();
+  }
+];
 
 // -----------------------------------------------------------------------------
 // Configuración de Multer (Subida de Archivos)
@@ -121,7 +144,11 @@ const checkRole = (roles) => {
 // -----------------------------------------------------------------------------
 // Rutas de Autenticación y Perfil
 // -----------------------------------------------------------------------------
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', validar([
+  body('nombre').trim().isLength({ min: 2, max: 60 }).withMessage('El nombre debe tener entre 2 y 60 caracteres'),
+  body('email').trim().isEmail().withMessage('Correo electrónico inválido'),
+  body('password').isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres')
+]), async (req, res) => {
   try {
     const { nombre, email, password, rol } = req.body;
     const rolesValidos = ['turista', 'comerciante'];
@@ -145,7 +172,10 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', validar([
+  body('email').trim().notEmpty().withMessage('El usuario o correo es obligatorio'),
+  body('password').notEmpty().withMessage('La contraseña es obligatoria')
+]), async (req, res) => {
   try {
     const { email, password } = req.body;
     const [users] = await pool.query('SELECT * FROM usuarios WHERE email = ?', [email]);
@@ -284,7 +314,15 @@ app.get('/api/locales', async (req, res) => {
   }
 });
 
-app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), async (req, res) => {
+app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), validar([
+  body('nombre').trim().isLength({ min: 2, max: 100 }).withMessage('El nombre del local debe tener entre 2 y 100 caracteres'),
+  body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
+  body('direccion').trim().notEmpty().withMessage('La dirección es obligatoria'),
+  body('telefono').optional({ values: 'falsy' }).trim().isLength({ max: 20 }).withMessage('El teléfono no puede exceder 20 caracteres'),
+  body('imagen_url').optional({ values: 'falsy' }).trim(),
+  body('id_categoria').optional({ values: 'null' }).isInt().withMessage('Categoría inválida'),
+  body('id_municipio').optional({ values: 'null' }).isInt().withMessage('Municipio inválido')
+]), async (req, res) => {
   try {
     const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
     const [result] = await pool.query(
@@ -345,7 +383,10 @@ app.get('/api/locales/:id/calificaciones', async (req, res) => {
   }
 });
 
-app.post('/api/locales/:id/calificaciones', authMiddleware, async (req, res) => {
+app.post('/api/locales/:id/calificaciones', authMiddleware, validar([
+  body('puntuacion').isInt({ min: 1, max: 5 }).withMessage('La puntuación debe estar entre 1 y 5'),
+  body('comentario').optional({ values: 'falsy' }).trim().isLength({ max: 500 }).withMessage('El comentario no puede exceder 500 caracteres')
+]), async (req, res) => {
   try {
     const { id } = req.params;
     const { puntuacion, comentario } = req.body;
@@ -429,7 +470,13 @@ const verificarPermisoPublicacion = async (idPublicacion, req, res, accion) => {
   return true;
 };
 
-app.post('/api/locales/:id/planes', authMiddleware, async (req, res) => {
+app.post('/api/locales/:id/planes', authMiddleware, validar([
+  body('titulo').trim().isLength({ min: 3, max: 100 }).withMessage('El título debe tener entre 3 y 100 caracteres'),
+  body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
+  body('precio').optional({ values: 'null' }).isFloat({ min: 0 }).withMessage('El precio no puede ser negativo'),
+  body('fecha_inicio').isISO8601().withMessage('Fecha de inicio inválida'),
+  body('fecha_fin').isISO8601().withMessage('Fecha de fin inválida')
+]), async (req, res) => {
   try {
     const { id } = req.params;
     const { titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url } = req.body;
@@ -450,7 +497,13 @@ app.post('/api/locales/:id/planes', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/planes/:id', authMiddleware, async (req, res) => {
+app.put('/api/planes/:id', authMiddleware, validar([
+  body('titulo').trim().isLength({ min: 3, max: 100 }).withMessage('El título debe tener entre 3 y 100 caracteres'),
+  body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
+  body('precio').optional({ values: 'null' }).isFloat({ min: 0 }).withMessage('El precio no puede ser negativo'),
+  body('fecha_inicio').isISO8601().withMessage('Fecha de inicio inválida'),
+  body('fecha_fin').isISO8601().withMessage('Fecha de fin inválida')
+]), async (req, res) => {
   try {
     const { id } = req.params;
     const { titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url } = req.body;
@@ -500,7 +553,9 @@ app.get('/api/publicaciones', async (req, res) => {
   }
 });
 
-app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), async (req, res) => {
+app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), validar([
+  body('contenido').trim().isLength({ min: 1, max: 2000 }).withMessage('El contenido es obligatorio (máximo 2000 caracteres)')
+]), async (req, res) => {
   try {
     const { contenido, imagen_url } = req.body;
 
@@ -519,7 +574,9 @@ app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), 
   }
 });
 
-app.put('/api/publicaciones/:id', authMiddleware, async (req, res) => {
+app.put('/api/publicaciones/:id', authMiddleware, validar([
+  body('contenido').optional().trim().isLength({ min: 1, max: 2000 }).withMessage('El contenido no puede estar vacío (máximo 2000 caracteres)')
+]), async (req, res) => {
   try {
     const { id } = req.params;
     const { contenido, imagen_url } = req.body;
