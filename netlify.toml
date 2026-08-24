@@ -1,7 +1,7 @@
 [build]
   base = "frontend"
   command = "npm run build"
-  publish = "frontend/dist"
+  publish = "dist"
 
 # Single Page App: cualquier ruta sirve index.html y React maneja el routing
 [[redirects]]
