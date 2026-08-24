@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import FondoPagina from '../components/FondoPagina';
 
 const API_URL = 'http://localhost:3000/api';
@@ -18,10 +18,12 @@ export default function Locales() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
+  const [searchParams] = useSearchParams();
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedMunicipality, setSelectedMunicipality] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('categoria') || '');
+  const [selectedDepartment, setSelectedDepartment] = useState(searchParams.get('departamento') || '');
+  const [selectedMunicipality, setSelectedMunicipality] = useState(searchParams.get('municipio') || '');
 
   // Catálogos para llenar los selects (categorías y municipios reales de la BD)
   useEffect(() => {
