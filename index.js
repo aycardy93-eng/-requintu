@@ -283,7 +283,7 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), (req, res) => {
 // -----------------------------------------------------------------------------
 app.get('/api/locales', async (req, res) => {
   try {
-    const { categoria, municipio, buscar } = req.query;
+    const { categoria, municipio, departamento, buscar } = req.query;
     let query = `
       SELECT l.*, c.nombre AS categoria_nombre, m.nombre AS municipio_nombre, m.departamento
       FROM locales l
@@ -300,6 +300,10 @@ app.get('/api/locales', async (req, res) => {
     if (municipio) {
       query += ' AND l.id_municipio = ?';
       params.push(municipio);
+    }
+    if (departamento) {
+      query += ' AND m.departamento = ?';
+      params.push(departamento);
     }
     if (buscar) {
       query += ' AND l.nombre LIKE ?';

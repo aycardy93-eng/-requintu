@@ -44,6 +44,7 @@ export default function Locales() {
     const params = new URLSearchParams();
     if (searchTerm.trim()) params.append('buscar', searchTerm.trim());
     if (selectedCategory) params.append('categoria', selectedCategory);
+    if (selectedDepartment) params.append('departamento', selectedDepartment);
     if (selectedMunicipality) params.append('municipio', selectedMunicipality);
 
     fetch(`${API_URL}/locales?${params.toString()}`)
@@ -56,7 +57,7 @@ export default function Locales() {
         setError('No se pudo conectar con el servidor.');
         setCargando(false);
       });
-  }, [searchTerm, selectedCategory, selectedMunicipality]);
+  }, [searchTerm, selectedCategory, selectedDepartment, selectedMunicipality]);
 
   // Departamentos únicos, derivados de la lista de municipios
   const departamentos = [...new Set(municipios.map((m) => m.departamento).filter(Boolean))].sort();
