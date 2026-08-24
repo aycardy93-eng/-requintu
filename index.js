@@ -19,6 +19,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const esProduccion = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
@@ -29,7 +30,14 @@ if (!JWT_SECRET) {
 // -----------------------------------------------------------------------------
 // Middlewares Globales
 // -----------------------------------------------------------------------------
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+if (esProduccion) {
+  app.set('trust proxy', 1);
+}
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true }
+}));
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173').split(',');
 app.use(cors({
@@ -41,6 +49,15 @@ app.use(cors({
   }
 }));
 app.use(express.json());
+
+if (esProduccion) {
+  app.use((req, res, next) => {
+    if (req.secure) {
+      return next();
+    }
+    res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+  });
+}
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const apiLimiter = rateLimit({
