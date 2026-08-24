@@ -7,6 +7,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 import pool, { checkDatabaseHealth } from './db.js';
 
 dotenv.config();
@@ -29,6 +30,26 @@ if (!JWT_SECRET) {
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde' }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Espera 15 minutos antes de volver a intentarlo' }
+});
+
+app.use('/api', apiLimiter);
+app.use('/api/login', authLimiter);
+app.use('/api/register', authLimiter);
 
 // -----------------------------------------------------------------------------
 // Configuración de Multer (Subida de Archivos)
