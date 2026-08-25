@@ -47,6 +47,23 @@ function CrearLocal() {
     ? municipios.filter((m) => m.departamento === departamentoSeleccionado)
     : municipios;
 
+  const [consultaMapa, setConsultaMapa] = useState('');
+
+  // Vista previa en vivo de la ubicación: se actualiza al dejar de escribir
+  useEffect(() => {
+    const temporizador = setTimeout(() => {
+      const nombreMunicipio = municipios.find(
+        (m) => String(m.id_municipio) === String(idMunicipio)
+      )?.nombre;
+
+      const partes = [direccion.trim(), nombreMunicipio, 'Colombia'].filter(Boolean);
+      const hayUbicacion = nombreMunicipio || direccion.trim().length >= 5;
+      setConsultaMapa(hayUbicacion ? partes.join(', ') : '');
+    }, 700);
+
+    return () => clearTimeout(temporizador);
+  }, [direccion, idMunicipio, municipios]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -236,6 +253,29 @@ function CrearLocal() {
                 ))}
               </select>
             </div>
+
+            {consultaMapa && (
+              <div style={{ marginBottom: '15px' }}>
+                <label>Vista previa de la ubicación:</label>
+                <iframe
+                  title="Vista previa del mapa"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(consultaMapa)}&z=15&output=embed`}
+                  style={{
+                    width: '100%',
+                    height: '240px',
+                    border: '1px solid rgba(255,255,255,0.25)',
+                    borderRadius: '8px',
+                    display: 'block',
+                    marginTop: '5px',
+                  }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+                <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#a9c9bb' }}>
+                  Así se verá el mapa en la página de tu local. Sé preciso en la dirección para un mejor resultado.
+                </p>
+              </div>
+            )}
 
             <div style={{ marginBottom: '15px' }}>
               <label>Imagen (opcional):</label>
