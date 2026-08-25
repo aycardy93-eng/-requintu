@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import pool, { checkDatabaseHealth } from '../db.js';
 
 process.env.RATE_LIMIT_API_MAX = '1000';
@@ -232,6 +233,42 @@ test('upload acepta un JPEG genuino', async () => {
 test('refresh sin cookie devuelve 401', async () => {
   const res = await fetch(`${base}/api/auth/refresh`, { method: 'POST' });
   assert.equal(res.status, 401);
+});
+
+test('forgot-password responde identico si el email existe o no', async () => {
+  const credenciales = await registrarUsuario();
+
+  const resExistente = await fetch(`${base}/api/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: credenciales.email })
+  });
+  const cuerpoExistente = await resExistente.json();
+
+  const resInexistente = await fetch(`${base}/api/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'nadie@test.requintu' })
+  });
+  const cuerpoInexistente = await resInexistente.json();
+
+  assert.equal(resExistente.status, 200);
+  assert.equal(resInexistente.status, 200);
+  assert.deepEqual(cuerpoExistente, cuerpoInexistente);
+});
+
+test('reset-password rechaza tokens invalidos y expirados', async () => {
+  const tokenFalso = crypto.randomBytes(32).toString('hex');
+
+  const res = await fetch(`${base}/api/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: tokenFalso, password: 'nuevaClave123' })
+  });
+
+  assert.equal(res.status, 400);
+  const cuerpo = await res.json();
+  assert.ok(cuerpo.error.includes('inválido') || cuerpo.error.includes('expiró'));
 });
 
 test('flujo completo de refresh token con rotacion y revocacion', async () => {

@@ -12,6 +12,7 @@ import helmet from 'helmet';
 import { body, validationResult } from 'express-validator';
 import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import pool, { checkDatabaseHealth } from './db.js';
 
 dotenv.config();
@@ -299,6 +300,102 @@ app.post('/api/auth/logout', async (req, res) => {
   } catch (err) {
     console.error('Error al cerrar la sesión:', err.message);
     res.status(500).json({ error: 'Error al cerrar la sesión' });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// Recuperación de contraseña
+// -----------------------------------------------------------------------------
+const transportadorCorreo = process.env.EMAIL_USER && process.env.EMAIL_PASSWORD
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD }
+    })
+  : null;
+
+app.post('/api/forgot-password', authLimiter, validar([
+  body('email').isEmail().withMessage('Debes proporcionar un correo válido').normalizeEmail()
+]), async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const [usuarios] = await pool.query(
+      'SELECT id_usuario FROM usuarios WHERE email = ?',
+      [email]
+    );
+
+    if (usuarios.length > 0) {
+      await pool.query('DELETE FROM password_resets WHERE expira_en < NOW()');
+
+      const token = crypto.randomBytes(32).toString('hex');
+      await pool.query(
+        'INSERT INTO password_resets (id_usuario, token_hash, expira_en) VALUES (?, ?, ?)',
+        [usuarios[0].id_usuario, hashRefreshToken(token), new Date(Date.now() + 60 * 60 * 1000)]
+      );
+
+      if (transportadorCorreo) {
+        const enlace = `${process.env.APP_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+        await transportadorCorreo.sendMail({
+          from: `"Requintu" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: 'Recupera tu contraseña - Requintu',
+          html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #0284c7;">¿Olvidaste tu contraseña?</h2>
+              <p>Hola, recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Requintu</strong>.</p>
+              <p style="text-align: center; margin: 25px 0;">
+                <a href="${enlace}"
+                   style="background: #ccff00; color: #0284c7; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                  Restablecer contraseña
+                </a>
+              </p>
+              <p style="color: #666; font-size: 13px;">Este enlace expira en <strong>1 hora</strong> y solo puede usarse una vez.</p>
+              <p style="color: #666; font-size: 13px;">Si no solicitaste este cambio, ignora este mensaje y tu contraseña seguirá siendo la misma.</p>
+            </div>
+          `
+        });
+      } else {
+        console.warn(`EMAIL_USER/EMAIL_PASSWORD no configurados. Token de reset generado para ${email} pero no enviado por correo.`);
+      }
+    }
+
+    res.json({
+      mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
+    });
+  } catch (err) {
+    console.error('Error al procesar la recuperación:', err.message);
+    res.status(500).json({ error: 'Error al procesar la solicitud' });
+  }
+});
+
+app.post('/api/reset-password', authLimiter, validar([
+  body('token').isString().trim().isLength({ min: 64, max: 64 }).withMessage('Enlace inválido'),
+  body('password').isLength({ min: 8 }).withMessage('La nueva contraseña debe tener al menos 8 caracteres')
+]), async (req, res) => {
+  const { token, password } = req.body;
+
+  try {
+    const tokenHash = hashRefreshToken(token);
+    const [filas] = await pool.query(
+      'SELECT id_usuario FROM password_resets WHERE token_hash = ? AND usado = 0 AND expira_en > NOW()',
+      [tokenHash]
+    );
+
+    if (filas.length === 0) {
+      return res.status(400).json({ error: 'El enlace es inválido o ya expiró. Solicita uno nuevo.' });
+    }
+
+    const idUsuario = filas[0].id_usuario;
+    const hashPassword = await bcrypt.hash(password, 10);
+
+    await pool.query('UPDATE usuarios SET password = ? WHERE id_usuario = ?', [hashPassword, idUsuario]);
+    await pool.query('UPDATE password_resets SET usado = 1 WHERE token_hash = ?', [tokenHash]);
+    await pool.query('UPDATE refresh_tokens SET revocado = 1 WHERE id_usuario = ?', [idUsuario]);
+
+    res.json({ mensaje: 'Contraseña actualizada con éxito. Ya puedes iniciar sesión.' });
+  } catch (err) {
+    console.error('Error al restablecer la contraseña:', err.message);
+    res.status(500).json({ error: 'Error al restablecer la contraseña' });
   }
 });
 

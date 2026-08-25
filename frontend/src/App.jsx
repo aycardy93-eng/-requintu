@@ -9,6 +9,8 @@ import Locales from './pages/Locales';
 import CrearLocal from './pages/CrearLocal';
 import LocalDetalle from './pages/LocalDetalle';
 import Perfil from './pages/Perfil';
+import OlvidePassword from './pages/OlvidePassword';
+import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import MapaColombia from './pages/MapaColombia';
 
@@ -21,6 +23,10 @@ function App() {
         <Route path="/" element={<Home />} />
 
         <Route path="/login" element={<Login />} />
+
+        <Route path="/olvide-password" element={<OlvidePassword />} />
+
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/register" element={<Register />} />
 
