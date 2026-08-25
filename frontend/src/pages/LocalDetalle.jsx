@@ -343,6 +343,37 @@ function LocalDetalle() {
       {local.direccion && <p><strong>Dirección:</strong> {local.direccion}</p>}
       {local.telefono && <p><strong>Teléfono:</strong> {local.telefono}</p>}
 
+      {(local.direccion || local.municipio) && (() => {
+        const consultaMapa = [local.direccion, local.municipio, 'Colombia'].filter(Boolean).join(', ');
+        return (
+          <div style={{ marginTop: '20px' }}>
+            <h2 style={{ marginBottom: '10px' }}>Ubicación</h2>
+            <iframe
+              title={`Mapa de ${local.nombre}`}
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(consultaMapa)}&z=15&output=embed`}
+              style={{
+                width: '100%',
+                height: '300px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '8px',
+                display: 'block',
+              }}
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consultaMapa)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none', display: 'inline-block', marginTop: '8px' }}
+            >
+              Abrir en Google Maps ↗
+            </a>
+          </div>
+        );
+      })()}
+
       <hr style={{ margin: '25px 0', borderColor: 'rgba(255,255,255,0.15)' }} />
 
       {/* ===== PROMOCIONES / EVENTOS (PLANES) ===== */}
