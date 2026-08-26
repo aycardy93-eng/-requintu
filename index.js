@@ -51,7 +51,7 @@ const allowedOrigins = new Set([
 ]);
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.has(origin)) {
       return callback(null, true);
     }
     callback(null, false);
