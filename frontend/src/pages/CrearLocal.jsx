@@ -19,6 +19,7 @@ function CrearLocal() {
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState('');
   const [idMunicipio, setIdMunicipio] = useState('');
   const [imagenFile, setImagenFile] = useState(null);
+  const [imagenUrlInput, setImagenUrlInput] = useState('');
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
@@ -79,25 +80,18 @@ function CrearLocal() {
     try {
       let imagen_url = null;
 
-      // 1. Si hay imagen seleccionada, subirla primero
-      if (imagenFile) {
+      if (imagenUrlInput.trim()) {
+        imagen_url = imagenUrlInput.trim();
+      } else if (imagenFile) {
         const formData = new FormData();
         formData.append('imagen', imagenFile);
-
         const uploadRes = await fetch(`${API_URL}/upload`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
-
         const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.error || 'Error al subir la imagen.');
-        }
-
+        if (!uploadRes.ok) throw new Error(uploadData.error || 'Error al subir la imagen.');
         imagen_url = uploadData.url;
       }
 
@@ -278,13 +272,17 @@ function CrearLocal() {
             )}
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Imagen (opcional):</label>
+              <label>URL de imagen (pega el enlace de la foto):</label>
               <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp"
-                onChange={(e) => setImagenFile(e.target.files[0])}
-                style={{ display: 'block', marginTop: '5px' }}
+                type="url"
+                placeholder="https://ejemplo.com/imagen.jpg"
+                value={imagenUrlInput}
+                onChange={(e) => setImagenUrlInput(e.target.value)}
+                style={estiloInput}
               />
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#a9c9bb' }}>
+                Copia el enlace directo de la imagen (Google Fotos, Instagram, etc.)
+              </p>
             </div>
 
             <button
