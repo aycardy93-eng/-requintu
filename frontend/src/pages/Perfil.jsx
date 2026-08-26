@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../config';
 
 function Perfil() {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
+  const navigate = useNavigate();
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [rol, setRol] = useState('');
@@ -14,6 +16,7 @@ function Perfil() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
+  const [eliminando, setEliminando] = useState(false);
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -115,6 +118,24 @@ function Perfil() {
     }
   };
 
+  const handleEliminarCuenta = async () => {
+    if (!window.confirm('¿Seguro que quieres eliminar tu cuenta? Se borrarán todos tus datos, locales y publicaciones. Esta acción no se puede deshacer.')) return;
+    setEliminando(true);
+    try {
+      const res = await fetch(`${API_URL}/usuarios/perfil`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al eliminar la cuenta');
+      logout();
+      navigate('/');
+    } catch (err) {
+      alert(err.message);
+      setEliminando(false);
+    }
+  };
+
   if (cargando) return <p style={{ padding: '20px' }}>Cargando perfil...</p>;
 
   return (
@@ -191,6 +212,22 @@ function Perfil() {
           {guardando ? 'Guardando...' : 'Guardar cambios'}
         </button>
       </form>
+
+      <hr style={{ margin: '30px 0', border: 'none', borderTop: '1px solid #ddd' }} />
+
+      <button
+        onClick={handleEliminarCuenta}
+        disabled={eliminando}
+        style={{
+          padding: '10px 18px', backgroundColor: '#dc2626', color: 'white',
+          border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
+        }}
+      >
+        {eliminando ? 'Eliminando...' : 'Eliminar mi cuenta'}
+      </button>
+      <p style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+        Esta acción borra permanentemente tu cuenta y todos tus datos.
+      </p>
     </main>
   );
 }

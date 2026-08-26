@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
 import BACKEND_ORIGIN, { API_URL } from '../config';
@@ -30,6 +30,7 @@ const estiloTarjeta = {
 function LocalDetalle() {
   const { id } = useParams();
   const { token, isAuthenticated, usuario: usuarioActual } = useAuth();
+  const navigate = useNavigate();
 
   const [local, setLocal] = useState(null);
   const [calificaciones, setCalificaciones] = useState([]);
@@ -60,6 +61,7 @@ function LocalDetalle() {
   const [imagenEditadaFile, setImagenEditadaFile] = useState(null);
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [errorEdicion, setErrorEdicion] = useState('');
+  const [eliminando, setEliminando] = useState(false);
 
   const cargarDatos = () => {
     setCargando(true);
@@ -88,6 +90,27 @@ function LocalDetalle() {
   useEffect(() => {
     cargarDatos();
   }, [id]);
+
+  const esDueno = isAuthenticated && usuarioActual && local && (
+    local.id_usuario === usuarioActual.id || usuarioActual.rol === 'admin'
+  );
+
+  const handleEliminarLocal = async () => {
+    if (!window.confirm('¿Seguro que quieres eliminar este local? Esta acción no se puede deshacer.')) return;
+    setEliminando(true);
+    try {
+      const res = await fetch(`${API_URL}/locales/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al eliminar');
+      navigate('/locales');
+    } catch (err) {
+      alert(err.message);
+      setEliminando(false);
+    }
+  };
 
   const handleCalificar = async (e) => {
     e.preventDefault();
@@ -331,7 +354,21 @@ function LocalDetalle() {
       </div>
     )}
     <div style={{ maxWidth: '700px', margin: '0 auto', fontFamily: 'sans-serif', padding: '20px 15px 30px 15px' }}>
-      <Link to="/locales" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver a locales</Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+        <Link to="/locales" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver a locales</Link>
+        {esDueno && (
+          <button
+            onClick={handleEliminarLocal}
+            disabled={eliminando}
+            style={{
+              backgroundColor: '#dc2626', color: 'white', border: 'none',
+              padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px',
+            }}
+          >
+            {eliminando ? 'Eliminando...' : 'Eliminar local'}
+          </button>
+        )}
+      </div>
 
       <h1 style={{ margin: '15px 0 5px 0' }}>{local.nombre}</h1>
       <p style={{ color: '#a9c9bb', margin: '0 0 15px 0' }}>

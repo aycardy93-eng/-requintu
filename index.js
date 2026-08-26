@@ -594,6 +594,38 @@ app.get('/api/locales/:id', async (req, res) => {
   }
 });
 
+app.delete('/api/locales/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT id_usuario FROM locales WHERE id_local = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Local no encontrado' });
+    }
+    if (rows[0].id_usuario !== req.user.id && req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar este local' });
+    }
+    await pool.query('DELETE FROM locales WHERE id_local = ?', [id]);
+    res.json({ mensaje: 'Local eliminado correctamente' });
+  } catch (err) {
+    console.error('Error al eliminar local:', err.message);
+    res.status(500).json({ error: 'Error al eliminar local' });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// Eliminar perfil de usuario
+// -----------------------------------------------------------------------------
+app.delete('/api/usuarios/perfil', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM usuarios WHERE id_usuario = ?', [req.user.id]);
+    res.clearCookie('refresh_token', COOKIE_OPCIONES);
+    res.json({ mensaje: 'Cuenta eliminada correctamente' });
+  } catch (err) {
+    console.error('Error al eliminar perfil:', err.message);
+    res.status(500).json({ error: 'Error al eliminar perfil' });
+  }
+});
+
 // -----------------------------------------------------------------------------
 // Calificaciones
 // -----------------------------------------------------------------------------
