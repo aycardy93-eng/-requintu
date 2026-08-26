@@ -1,10 +1,24 @@
 import { useState, useEffect } from 'react';
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
 export default function InstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showBanner, setShowBanner] = useState(false);
+  const [showIOSHelp, setShowIOSHelp] = useState(false);
 
   useEffect(() => {
+    if (isStandalone) return;
+
+    if (isIOS) {
+      const dismissed = sessionStorage.getItem('pwa-ios-dismissed');
+      if (!dismissed) {
+        setShowBanner(true);
+      }
+      return;
+    }
+
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -30,26 +44,53 @@ export default function InstallBanner() {
 
   const handleDismiss = () => {
     setShowBanner(false);
-    sessionStorage.setItem('pwa-dismissed', 'true');
+    if (isIOS) {
+      sessionStorage.setItem('pwa-ios-dismissed', 'true');
+    } else {
+      sessionStorage.setItem('pwa-dismissed', 'true');
+    }
   };
 
-  if (!showBanner || !deferredPrompt) return null;
+  if (isStandalone || !showBanner) return null;
+
+  if (showIOSHelp) {
+    return (
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+        color: 'white', padding: '16px', zIndex: 9999,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+          <div>
+            <strong style={{ fontSize: 15 }}>Instalar Requintu en iPhone</strong>
+            <ol style={{ margin: '8px 0', paddingLeft: '18px', fontSize: 13, lineHeight: 1.8 }}>
+              <li>Toca el boton <strong>Compartir</strong> abajo</li>
+              <li>Desplaza hacia abajo y toca <strong>"Agregar a pantalla de inicio"</strong></li>
+              <li>Toca <strong>"Agregar"</strong> arriba a la derecha</li>
+            </ol>
+          </div>
+          <button onClick={() => { setShowIOSHelp(false); handleDismiss(); }} style={{
+            background: 'transparent', border: '1px solid rgba(255,255,255,0.4)',
+            color: 'white', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, flexShrink: 0, marginLeft: 8
+          }}>Cerrar</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button onClick={() => { setShowIOSHelp(false); handleDismiss(); }} style={{
+            flex: 1, background: 'transparent', border: '1px solid rgba(255,255,255,0.4)',
+            color: 'white', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12
+          }}>Ahora no</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
+      position: 'fixed', bottom: 0, left: 0, right: 0,
       background: 'linear-gradient(135deg, #0284c7, #0369a1)',
-      color: 'white',
-      padding: '12px 16px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
-      zIndex: 9999,
-      gap: '10px'
+      color: 'white', padding: '12px 16px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      boxShadow: '0 -4px 20px rgba(0,0,0,0.3)', zIndex: 9999, gap: '10px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
         <img src="/icon-192.png" alt="" style={{ width: 36, height: 36, borderRadius: 8 }} />
@@ -59,15 +100,23 @@ export default function InstallBanner() {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        <button onClick={handleDismiss} style={{
+        <button onClick={() => {
+          if (isIOS) { setShowIOSHelp(true); } else { handleDismiss(); }
+        }} style={{
           background: 'transparent', border: '1px solid rgba(255,255,255,0.4)',
           color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12
-        }}>Ahora no</button>
-        <button onClick={handleInstall} style={{
-          background: 'white', color: '#0284c7', border: 'none',
-          padding: '6px 14px', borderRadius: 6, cursor: 'pointer',
-          fontWeight: 'bold', fontSize: 12
-        }}>Instalar</button>
+        }}>{isIOS ? 'Como instalar' : 'Ahora no'}</button>
+        {isIOS ? (
+          <button onClick={() => setShowIOSHelp(true)} style={{
+            background: 'white', color: '#0284c7', border: 'none',
+            padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12
+          }}>Ver pasos</button>
+        ) : (
+          <button onClick={handleInstall} style={{
+            background: 'white', color: '#0284c7', border: 'none',
+            padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12
+          }}>Instalar</button>
+        )}
       </div>
     </div>
   );
