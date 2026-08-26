@@ -42,7 +42,13 @@ app.use(helmet({
   strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true }
 }));
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,https://requintu.vercel.app').split(',');
+const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'https://requintu.vercel.app',
+  ...((process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean))
+]);
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
