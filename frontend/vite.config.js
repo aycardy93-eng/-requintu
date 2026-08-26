@@ -42,7 +42,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/requintu-1\.onrender\.com\/api\//,
+            urlPattern: /^https:\/\/requintu.*\.onrender\.com\/api\//,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',

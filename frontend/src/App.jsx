@@ -13,12 +13,14 @@ import OlvidePassword from './pages/OlvidePassword';
 import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import MapaColombia from './pages/MapaColombia';
+import InstallBanner from './components/InstallBanner';
 import { Link } from 'react-router-dom';
 
 function App() {
   return (
     <>
       <Navbar />
+      <InstallBanner />
 
       <Routes>
         <Route path="/" element={<Home />} />
