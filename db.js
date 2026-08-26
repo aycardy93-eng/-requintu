@@ -10,16 +10,16 @@ const configuracion = {
   database: process.env.DB_NAME || 'requintu_db',
 
   waitForConnections: true,
-  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
-  queueLimit: 100,
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 5,
+  queueLimit: 50,
   connectTimeout: 10000,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 10000
+  keepAliveInitialDelay: 5000
 };
 
 // Las BD de MySQL administradas en la nube (Aiven, TiDB, etc.) exigen TLS
 if (process.env.DB_SSL === 'true') {
-  configuracion.ssl = { minVersion: 'TLSv1.2' };
+  configuracion.ssl = { rejectUnauthorized: true };
 }
 
 const pool = mysql.createPool(configuracion);
