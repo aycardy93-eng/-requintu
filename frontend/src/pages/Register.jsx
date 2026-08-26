@@ -8,11 +8,13 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Viajero');
+  const [enviando, setEnviando] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !email || !password) return;
+    setEnviando(true);
 
     const rol = role === 'Propietario' ? 'comerciante' : 'turista';
 
@@ -35,6 +37,8 @@ export default function Register() {
     } catch (error) {
       console.error('Error al registrarse:', error);
       alert('No se pudo conectar con el servidor');
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -155,6 +159,7 @@ export default function Register() {
 
           <button
             type="submit"
+            disabled={enviando}
             style={{
               backgroundColor: '#38bdf8',
               color: '#ffffff',
@@ -165,9 +170,10 @@ export default function Register() {
               fontSize: '16px',
               cursor: 'pointer',
               marginTop: '10px',
+              opacity: enviando ? 0.6 : 1
             }}
           >
-            Registrarme
+            {enviando ? 'Registrando...' : 'Registrarme'}
           </button>
         </form>
 

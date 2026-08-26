@@ -19,6 +19,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [indexCarrusel, setIndexCarrusel] = useState(0);
+  const [enviando, setEnviando] = useState(false);
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -43,6 +44,7 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setEnviando(true);
     try {
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
@@ -57,11 +59,13 @@ export default function Login() {
         return;
       }
 
-      login(data.token); // token real emitido por tu backend
+      login(data.token);
       navigate('/mapa');
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
       alert('No se pudo conectar con el servidor');
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -221,6 +225,7 @@ export default function Login() {
 
             <button
               type="submit"
+              disabled={enviando}
               style={{
                 backgroundColor: '#38bdf8',
                 color: '#fff',
@@ -230,9 +235,10 @@ export default function Login() {
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 marginTop: '10px',
+                opacity: enviando ? 0.6 : 1
               }}
             >
-              Ingresar
+              {enviando ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
 

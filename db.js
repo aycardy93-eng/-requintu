@@ -11,7 +11,11 @@ const configuracion = {
 
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
-  queueLimit: 0
+  queueLimit: 100,
+  acquireTimeout: 10000,
+  connectTimeout: 10000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000
 };
 
 // Las BD de MySQL administradas en la nube (Aiven, TiDB, etc.) exigen TLS

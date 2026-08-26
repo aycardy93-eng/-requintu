@@ -13,6 +13,7 @@ import OlvidePassword from './pages/OlvidePassword';
 import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import MapaColombia from './pages/MapaColombia';
+import { Link } from 'react-router-dom';
 
 function App() {
   return (
@@ -69,6 +70,17 @@ function App() {
             <ProtectedRoute>
               <CrearLocal />
             </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="*"
+          element={
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#12283d' }}>
+              <h1 style={{ fontSize: '48px', margin: 0 }}>404</h1>
+              <p>La página que buscas no existe.</p>
+              <Link to="/" style={{ color: '#38bdf8', fontWeight: 'bold' }}>Volver al inicio</Link>
+            </div>
           }
         />
       </Routes>

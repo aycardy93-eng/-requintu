@@ -271,6 +271,54 @@ test('reset-password rechaza tokens invalidos y expirados', async () => {
   assert.ok(cuerpo.error.includes('inválido') || cuerpo.error.includes('expiró'));
 });
 
+test('flujo completo de reset de contrasena: registrar, olvidar, restablecer, login', async () => {
+  const credenciales = await registrarUsuario();
+
+  const tokenRaw = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(tokenRaw).digest('hex');
+
+  const [users] = await pool.query('SELECT id_usuario FROM usuarios WHERE email = ?', [credenciales.email]);
+  await pool.query(
+    'INSERT INTO password_resets (id_usuario, token_hash, expira_en) VALUES (?, ?, ?)',
+    [users[0].id_usuario, tokenHash, new Date(Date.now() + 3600000)]
+  );
+
+  const resetRes = await fetch(`${base}/api/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: tokenRaw, password: 'NuevaClave123!' })
+  });
+  assert.equal(resetRes.status, 200);
+
+  const loginNuevo = await login(credenciales.email, 'NuevaClave123!');
+  assert.equal(loginNuevo.status, 200);
+
+  const loginVieja = await login(credenciales.email, credenciales.password);
+  assert.equal(loginVieja.status, 401);
+
+  const [filas] = await pool.query('SELECT usado FROM password_resets WHERE token_hash = ?', [tokenHash]);
+  assert.equal(filas[0].usado, 1);
+
+  const reuso = await fetch(`${base}/api/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: tokenRaw, password: 'OtraClave456!' })
+  });
+  assert.equal(reuso.status, 400);
+});
+
+test('rechaza registro con email duplicado', async () => {
+  const credenciales = await registrarUsuario();
+  const res = await fetch(`${base}/api/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre: 'Otro', email: credenciales.email, password: 'ClaveSegura123' })
+  });
+  assert.equal(res.status, 400);
+  const cuerpo = await res.json();
+  assert.ok(cuerpo.error.includes('ya está registrado') || cuerpo.error.includes('registrado'));
+});
+
 test('flujo completo de refresh token con rotacion y revocacion', async () => {
   const credenciales = await registrarUsuario();
 

@@ -60,7 +60,7 @@ if (esProduccion) {
     if (req.secure) {
       return next();
     }
-    res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+    res.redirect(301, `https://${req.hostname}${req.originalUrl}`);
   });
 }
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -388,7 +388,7 @@ app.post('/api/reset-password', authLimiter, validar([
     const idUsuario = filas[0].id_usuario;
     const hashPassword = await bcrypt.hash(password, 10);
 
-    await pool.query('UPDATE usuarios SET password = ? WHERE id_usuario = ?', [hashPassword, idUsuario]);
+    await pool.query('UPDATE usuarios SET password_hash = ? WHERE id_usuario = ?', [hashPassword, idUsuario]);
     await pool.query('UPDATE password_resets SET usado = 1 WHERE token_hash = ?', [tokenHash]);
     await pool.query('UPDATE refresh_tokens SET revocado = 1 WHERE id_usuario = ?', [idUsuario]);
 
@@ -468,11 +468,11 @@ app.get('/api/departamentos/:nombre/municipios', async (req, res) => {
 });
 
 const verificarFirmaImagen = async (ruta) => {
+  let manejador;
   try {
-    const manejador = await fs.promises.open(ruta, 'r');
+    manejador = await fs.promises.open(ruta, 'r');
     const buffer = Buffer.alloc(12);
     await manejador.read(buffer, 0, 12, 0);
-    await manejador.close();
 
     const esJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
     const esPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
@@ -483,6 +483,8 @@ const verificarFirmaImagen = async (ruta) => {
     return esJpeg || esPng || esWebp;
   } catch {
     return false;
+  } finally {
+    if (manejador) await manejador.close().catch(() => {});
   }
 };
 
@@ -490,17 +492,25 @@ const verificarFirmaImagen = async (ruta) => {
 // Subida de Archivos
 // -----------------------------------------------------------------------------
 app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'Por favor selecciona un archivo' });
-  }
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Por favor selecciona un archivo' });
+    }
 
-  const firmaValida = await verificarFirmaImagen(req.file.path);
-  if (!firmaValida) {
-    await fs.promises.unlink(req.file.path).catch(() => {});
-    return res.status(400).json({ error: 'El archivo no es una imagen válida' });
-  }
+    const firmaValida = await verificarFirmaImagen(req.file.path);
+    if (!firmaValida) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+      return res.status(400).json({ error: 'El archivo no es una imagen válida' });
+    }
 
-  res.json({ mensaje: 'Imagen subida correctamente', url: `/uploads/${req.file.filename}` });
+    res.json({ mensaje: 'Imagen subida correctamente', url: `/uploads/${req.file.filename}` });
+  } catch (err) {
+    if (req.file) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+    }
+    console.error('Error al subir la imagen:', err.message);
+    res.status(500).json({ error: 'Error al subir la imagen' });
+  }
 });
 
 // -----------------------------------------------------------------------------
@@ -531,8 +541,9 @@ app.get('/api/locales', async (req, res) => {
       params.push(departamento);
     }
     if (buscar) {
-      query += ' AND l.nombre LIKE ?';
-      params.push(`%${buscar}%`);
+      const escapedBuscar = buscar.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+      query += ' AND l.nombre LIKE ? ESCAPE \'\\\\\'';
+      params.push(`%${escapedBuscar}%`);
     }
 
     const [locales] = await pool.query(query, params);
@@ -665,9 +676,9 @@ app.get('/api/locales/:id/planes', async (req, res) => {
 });
 
 const verificarDuenoDelLocal = async (idLocal, userId, rol) => {
-  if (rol === 'admin') return true;
   const [rows] = await pool.query('SELECT id_usuario FROM locales WHERE id_local = ?', [idLocal]);
   if (rows.length === 0) return false;
+  if (rol === 'admin') return true;
   return rows[0].id_usuario === userId;
 };
 
@@ -740,8 +751,15 @@ app.put('/api/planes/:id', authMiddleware, validar([
     if (!(await verificarPermisoPlan(id, req, res, 'editar'))) return;
 
     await pool.query(
-      'UPDATE planes SET titulo = ?, descripcion = ?, precio = ?, fecha_inicio = ?, fecha_fin = ?, imagen_url = ? WHERE id_plan = ?',
-      [titulo, descripcion || null, precio || 0, fecha_inicio, fecha_fin, imagen_url || null, id]
+      `UPDATE planes SET
+        titulo = ?,
+        descripcion = COALESCE(?, descripcion),
+        precio = COALESCE(?, precio),
+        fecha_inicio = ?,
+        fecha_fin = ?,
+        imagen_url = COALESCE(?, imagen_url)
+      WHERE id_plan = ?`,
+      [titulo, descripcion ?? null, precio ?? null, fecha_inicio, fecha_fin, imagen_url ?? null, id]
     );
     res.json({ mensaje: 'Plan actualizado con éxito' });
   } catch (err) {
@@ -812,9 +830,24 @@ app.put('/api/publicaciones/:id', authMiddleware, validar([
 
     if (!(await verificarPermisoPublicacion(id, req, res, 'editar'))) return;
 
+    const updates = [];
+    const params = [];
+    if (contenido !== undefined) {
+      updates.push('contenido = ?');
+      params.push(contenido);
+    }
+    if (imagen_url !== undefined) {
+      updates.push('imagen_url = ?');
+      params.push(imagen_url || null);
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No hay campos para actualizar' });
+    }
+    params.push(id);
+
     await pool.query(
-      'UPDATE publicaciones SET contenido = ?, imagen_url = ? WHERE id = ?',
-      [contenido, imagen_url || null, id]
+      `UPDATE publicaciones SET ${updates.join(', ')} WHERE id = ?`,
+      params
     );
     res.json({ mensaje: 'Publicación actualizada con éxito' });
   } catch (err) {
@@ -845,6 +878,9 @@ app.use((err, req, res, next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(413).json({ error: 'El archivo excede el límite de 5MB' });
     }
+    return res.status(400).json({ error: err.message });
+  }
+  if (err.message && err.message.startsWith('Solo se permiten')) {
     return res.status(400).json({ error: err.message });
   }
   console.error('Error no controlado:', err);
