@@ -281,8 +281,15 @@ function CrearLocal() {
                 style={estiloInput}
               />
               <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#a9c9bb' }}>
-                Copia el enlace directo de la imagen (Google Fotos, Instagram, etc.)
+                O selecciona un archivo de tu telefono:
               </p>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                onChange={(e) => setImagenFile(e.target.files[0])}
+                style={{ display: 'block', marginTop: '5px' }}
+              />
+              {imagenFile && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#ccff00' }}>{imagenFile.name}</p>}
             </div>
 
             <button

@@ -13,6 +13,7 @@ import { body, validationResult } from 'express-validator';
 import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { v2 as cloudinary } from 'cloudinary';
 import pool, { checkDatabaseHealth } from './db.js';
 
 dotenv.config();
@@ -29,6 +30,12 @@ if (!JWT_SECRET) {
   console.error('JWT_SECRET no está definido. Configúralo en el archivo .env antes de iniciar el servidor.');
   process.exit(1);
 }
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // -----------------------------------------------------------------------------
 // Middlewares Globales
@@ -105,21 +112,7 @@ const validar = (validaciones) => [
 // -----------------------------------------------------------------------------
 // Configuración de Multer (Subida de Archivos)
 // -----------------------------------------------------------------------------
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-  }
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedExtensions = /jpeg|jpg|png|webp/;
@@ -503,17 +496,15 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
       return res.status(400).json({ error: 'Por favor selecciona un archivo' });
     }
 
-    const firmaValida = await verificarFirmaImagen(req.file.path);
-    if (!firmaValida) {
-      await fs.promises.unlink(req.file.path).catch(() => {});
-      return res.status(400).json({ error: 'El archivo no es una imagen válida' });
-    }
+    const b64 = req.file.buffer.toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'requintu',
+      transformation: [{ width: 800, height: 600, crop: 'limit' }]
+    });
 
-    res.json({ mensaje: 'Imagen subida correctamente', url: `/uploads/${req.file.filename}` });
+    res.json({ mensaje: 'Imagen subida correctamente', url: result.secure_url });
   } catch (err) {
-    if (req.file) {
-      await fs.promises.unlink(req.file.path).catch(() => {});
-    }
     console.error('Error al subir la imagen:', err.message);
     res.status(500).json({ error: 'Error al subir la imagen' });
   }
