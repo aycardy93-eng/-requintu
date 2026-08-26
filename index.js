@@ -431,7 +431,7 @@ app.get('/api/categorias', async (req, res) => {
     res.json(categorias);
   } catch (err) {
     console.error('Error al obtener categorías:', err.message);
-    res.status(500).json({ error: 'Error al obtener categorías', detalle: err.message });
+    res.status(500).json({ error: 'Error al obtener categorías' });
   }
 });
 
