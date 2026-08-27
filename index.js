@@ -51,6 +51,15 @@ app.get('/api/debug/cloudinary', (req, res) => {
   });
 });
 
+app.get('/api/debug/email', (req, res) => {
+  res.json({
+    email_user: process.env.EMAIL_USER ? 'OK' : 'FALTA',
+    email_password: process.env.EMAIL_PASSWORD ? 'OK' : 'FALTA',
+    app_url: process.env.APP_URL ? 'OK' : 'FALTA',
+    transportador: transportadorCorreo ? 'CREADO' : 'NO CREADO',
+  });
+});
+
 // -----------------------------------------------------------------------------
 // Middlewares Globales
 // -----------------------------------------------------------------------------
