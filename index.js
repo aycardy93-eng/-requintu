@@ -68,11 +68,11 @@ app.get('/api/debug/enviar-correo', async (req, res) => {
     return res.status(500).json({ error: 'Brevo no configurado' });
   }
   const resultado = await enviarCorreoBrevo(
-    req.query.to || process.env.EMAIL_USER,
+    req.query.to || process.env.EMAIL_USER || BREVO_SENDER_EMAIL,
     'Prueba Requintu',
     '<p>Prueba de envio desde Render</p>'
   );
-  res.json({ ok: true });
+  res.json(resultado);
 });
 
 // -----------------------------------------------------------------------------
@@ -387,8 +387,10 @@ async function enviarCorreoBrevo(destinatario, asunto, html) {
       throw new Error(data.message || `Brevo error ${res.status}`);
     }
     console.log(`Correo enviado a ${destinatario}: ${data.messageId}`);
+    return { ok: true, messageId: data.messageId };
   } catch (err) {
     console.error('Error al enviar el correo de recuperación:', err.message);
+    return { ok: false, error: err.message };
   }
 }
 
