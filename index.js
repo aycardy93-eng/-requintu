@@ -510,20 +510,42 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
       return res.status(400).json({ error: 'Por favor selecciona un archivo' });
     }
 
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      return res.status(500).json({ error: 'Cloudinary no está configurado en el servidor' });
+    }
+
+    const timestamp = Math.round(Date.now() / 1000);
+    const folder = 'requintu';
+    const publicId = `requintu_${timestamp}_${Math.random().toString(36).slice(2, 8)}`;
+
+    const stringToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+    const signature = crypto.createHash('sha256').update(stringToSign).digest('hex');
+
+    const formData = new FormData();
+    formData.append('file', `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`);
+    formData.append('api_key', apiKey);
+    formData.append('timestamp', timestamp);
+    formData.append('folder', folder);
+    formData.append('public_id', publicId);
+    formData.append('signature', signature);
+    formData.append('transformation', 'c_limit,w_800,h_600');
+
+    const result = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: formData,
     });
 
-    const b64 = req.file.buffer.toString('base64');
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-    const result = await cloudinary.uploader.upload(dataURI, {
-      folder: 'requintu',
-      transformation: [{ width: 800, height: 600, crop: 'limit' }]
-    });
+    const data = await result.json();
 
-    res.json({ mensaje: 'Imagen subida correctamente', url: result.secure_url });
+    if (!result.ok) {
+      throw new Error(data.error?.message || 'Error de Cloudinary');
+    }
+
+    res.json({ mensaje: 'Imagen subida correctamente', url: data.secure_url });
   } catch (err) {
     console.error('Error al subir la imagen:', err.message, err);
     res.status(500).json({ error: 'Error al subir la imagen: ' + (err.message || 'Error desconocido') });
