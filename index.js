@@ -17,6 +17,9 @@ import { v2 as cloudinary } from 'cloudinary';
 import pool, { checkDatabaseHealth } from './db.js';
 import { contieneGroserias } from './filtroProfano.js';
 
+import nodeDns from 'node:dns';
+nodeDns.setDefaultResultOrder('ipv4first');
+
 dotenv.config();
 
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
