@@ -39,17 +39,16 @@ cloudinary.config({
 
 app.get('/api/debug/cloudinary', (req, res) => {
   res.json({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? 'OK' : 'FALTA',
-    api_key: process.env.CLOUDINARY_API_KEY ? 'OK' : 'FALTA',
-    api_secret: process.env.CLOUDINARY_API_SECRET ? 'OK' : 'FALTA',
+    cloud_name: CLOUD_NAME ? 'OK' : 'FALTA',
+    api_key: CLOUD_API_KEY ? 'OK' : 'FALTA',
+    api_secret: CLOUD_API_SECRET ? 'OK' : 'FALTA',
   });
 });
 
-if (process.env.CLOUDINARY_CLOUD_NAME) {
-  console.log('Cloudinary configurado correctamente');
-} else {
-  console.error('ADVERTENCIA: CLOUDINARY_CLOUD_NAME no está definido');
-}
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+const CLOUD_API_KEY = process.env.CLOUDINARY_API_KEY;
+const CLOUD_API_SECRET = process.env.CLOUDINARY_API_SECRET;
+console.log('Cloudinary config:', CLOUD_NAME ? 'OK' : 'FALTA', CLOUD_API_KEY ? 'OK' : 'FALTA', CLOUD_API_SECRET ? 'OK' : 'FALTA');
 
 // -----------------------------------------------------------------------------
 // Middlewares Globales
@@ -510,9 +509,9 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
       return res.status(400).json({ error: 'Por favor selecciona un archivo' });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const cloudName = CLOUD_NAME;
+    const apiKey = CLOUD_API_KEY;
+    const apiSecret = CLOUD_API_SECRET;
 
     if (!cloudName || !apiKey || !apiSecret) {
       return res.status(500).json({ error: 'Cloudinary no está configurado en el servidor' });
