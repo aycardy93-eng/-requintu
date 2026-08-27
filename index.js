@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { v2 as cloudinary } from 'cloudinary';
 import pool, { checkDatabaseHealth } from './db.js';
+import { contieneGroserias } from './filtroProfano.js';
 
 dotenv.config();
 
@@ -121,6 +122,24 @@ const validar = (validaciones) => [
     next();
   }
 ];
+
+// Validador contra groserías: bloquea texto con palabras inapropiadas.
+const sinGroserias = (campos = []) => {
+  return (req, res, next) => {
+    for (const campo of campos) {
+      const valor = req.body?.[campo];
+      if (valor && typeof valor === 'string') {
+        const detectadas = contieneGroserias(valor);
+        if (detectadas.length > 0) {
+          return res.status(400).json({
+            error: `Tu texto contiene lenguaje inapropiado. Por favor edita tu mensaje.`
+          });
+        }
+      }
+    }
+    next();
+  };
+};
 
 // -----------------------------------------------------------------------------
 // Configuración de Multer (Subida de Archivos)
@@ -601,7 +620,7 @@ app.get('/api/locales', async (req, res) => {
   }
 });
 
-app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), validar([
+app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), sinGroserias(['nombre', 'descripcion', 'direccion']), validar([
   body('nombre').trim().isLength({ min: 2, max: 100 }).withMessage('El nombre del local debe tener entre 2 y 100 caracteres'),
   body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
   body('direccion').trim().notEmpty().withMessage('La dirección es obligatoria'),
@@ -644,7 +663,7 @@ app.get('/api/locales/:id', async (req, res) => {
   }
 });
 
-app.put('/api/locales/:id', authMiddleware, validar([
+app.put('/api/locales/:id', authMiddleware, sinGroserias(['nombre', 'descripcion', 'direccion']), validar([
   body('nombre').optional().trim().isLength({ min: 2, max: 100 }),
   body('descripcion').optional().trim().isLength({ max: 1000 }),
   body('direccion').optional().trim(),
@@ -742,7 +761,7 @@ app.get('/api/locales/:id/calificaciones', async (req, res) => {
   }
 });
 
-app.post('/api/locales/:id/calificaciones', authMiddleware, validar([
+app.post('/api/locales/:id/calificaciones', authMiddleware, sinGroserias(['comentario']), validar([
   body('puntuacion').isInt({ min: 1, max: 5 }).withMessage('La puntuación debe estar entre 1 y 5'),
   body('comentario').optional({ values: 'falsy' }).trim().isLength({ max: 500 }).withMessage('El comentario no puede exceder 500 caracteres')
 ]), async (req, res) => {
@@ -829,7 +848,7 @@ const verificarPermisoPublicacion = async (idPublicacion, req, res, accion) => {
   return true;
 };
 
-app.post('/api/locales/:id/planes', authMiddleware, validar([
+app.post('/api/locales/:id/planes', authMiddleware, sinGroserias(['titulo', 'descripcion']), validar([
   body('titulo').trim().isLength({ min: 3, max: 100 }).withMessage('El título debe tener entre 3 y 100 caracteres'),
   body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
   body('precio').optional({ values: 'null' }).isFloat({ min: 0 }).withMessage('El precio no puede ser negativo'),
@@ -856,7 +875,7 @@ app.post('/api/locales/:id/planes', authMiddleware, validar([
   }
 });
 
-app.put('/api/planes/:id', authMiddleware, validar([
+app.put('/api/planes/:id', authMiddleware, sinGroserias(['titulo', 'descripcion']), validar([
   body('titulo').trim().isLength({ min: 3, max: 100 }).withMessage('El título debe tener entre 3 y 100 caracteres'),
   body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
   body('precio').optional({ values: 'null' }).isFloat({ min: 0 }).withMessage('El precio no puede ser negativo'),
@@ -919,7 +938,7 @@ app.get('/api/publicaciones', async (req, res) => {
   }
 });
 
-app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), validar([
+app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), sinGroserias(['contenido']), validar([
   body('contenido').trim().isLength({ min: 1, max: 2000 }).withMessage('El contenido es obligatorio (máximo 2000 caracteres)')
 ]), async (req, res) => {
   try {
@@ -940,7 +959,7 @@ app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), 
   }
 });
 
-app.put('/api/publicaciones/:id', authMiddleware, validar([
+app.put('/api/publicaciones/:id', authMiddleware, sinGroserias(['contenido']), validar([
   body('contenido').optional().trim().isLength({ min: 1, max: 2000 }).withMessage('El contenido no puede estar vacío (máximo 2000 caracteres)')
 ]), async (req, res) => {
   try {
