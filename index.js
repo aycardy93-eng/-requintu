@@ -349,9 +349,39 @@ app.post('/api/auth/logout', async (req, res) => {
 const transportadorCorreo = process.env.EMAIL_USER && process.env.EMAIL_PASSWORD
   ? nodemailer.createTransport({
       service: 'gmail',
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD }
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     })
   : null;
+
+async function enviarCorreoReset(email, enlace) {
+  try {
+    await transportadorCorreo.sendMail({
+      from: `"Requintu" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Recupera tu contraseña - Requintu',
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #0284c7;">¿Olvidaste tu contraseña?</h2>
+          <p>Hola, recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Requintu</strong>.</p>
+          <p style="text-align: center; margin: 25px 0;">
+            <a href="${enlace}"
+               style="background: #ccff00; color: #0284c7; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+              Restablecer contraseña
+            </a>
+          </p>
+          <p style="color: #666; font-size: 13px;">Este enlace expira en <strong>1 hora</strong> y solo puede usarse una vez.</p>
+          <p style="color: #666; font-size: 13px;">Si no solicitaste este cambio, ignora este mensaje y tu contraseña seguirá siendo la misma.</p>
+        </div>
+      `
+    });
+    console.log(`Correo de recuperación enviado a ${email}`);
+  } catch (err) {
+    console.error('Error al enviar el correo de recuperación:', err.message);
+  }
+}
 
 app.post('/api/forgot-password', authLimiter, validar([
   body('email').isEmail().withMessage('Debes proporcionar un correo válido').normalizeEmail()
@@ -375,25 +405,7 @@ app.post('/api/forgot-password', authLimiter, validar([
 
       if (transportadorCorreo) {
         const enlace = `${process.env.APP_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
-        await transportadorCorreo.sendMail({
-          from: `"Requintu" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: 'Recupera tu contraseña - Requintu',
-          html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #0284c7;">¿Olvidaste tu contraseña?</h2>
-              <p>Hola, recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Requintu</strong>.</p>
-              <p style="text-align: center; margin: 25px 0;">
-                <a href="${enlace}"
-                   style="background: #ccff00; color: #0284c7; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
-                  Restablecer contraseña
-                </a>
-              </p>
-              <p style="color: #666; font-size: 13px;">Este enlace expira en <strong>1 hora</strong> y solo puede usarse una vez.</p>
-              <p style="color: #666; font-size: 13px;">Si no solicitaste este cambio, ignora este mensaje y tu contraseña seguirá siendo la misma.</p>
-            </div>
-          `
-        });
+        enviarCorreoReset(email, enlace);
       } else {
         console.warn(`EMAIL_USER/EMAIL_PASSWORD no configurados. Token de reset generado para ${email} pero no enviado por correo.`);
       }
