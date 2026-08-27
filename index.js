@@ -56,28 +56,23 @@ app.get('/api/debug/cloudinary', (req, res) => {
 
 app.get('/api/debug/email', (req, res) => {
   res.json({
-    email_user: process.env.EMAIL_USER ? 'OK' : 'FALTA',
-    email_password: process.env.EMAIL_PASSWORD ? 'OK' : 'FALTA',
+    brevo_api_key: process.env.BREVO_API_KEY ? 'OK' : 'FALTA',
+    seller_email: process.env.EMAIL_USER ? 'OK' : 'FALTA',
     app_url: process.env.APP_URL ? 'OK' : 'FALTA',
-    transportador: transportadorCorreo ? 'CREADO' : 'NO CREADO',
+    correo_configurado: correoConfigurado,
   });
 });
 
 app.get('/api/debug/enviar-correo', async (req, res) => {
-  if (!transportadorCorreo) {
-    return res.status(500).json({ error: 'Email no configurado' });
+  if (!correoConfigurado) {
+    return res.status(500).json({ error: 'Brevo no configurado' });
   }
-  try {
-    const info = await transportadorCorreo.sendMail({
-      from: `"Requintu" <${process.env.EMAIL_USER}>`,
-      to: req.query.to || process.env.EMAIL_USER,
-      subject: 'Prueba Requintu',
-      html: '<p>Prueba de envio desde Render</p>'
-    });
-    res.json({ ok: true, messageId: info.messageId, response: info.response });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const resultado = await enviarCorreoBrevo(
+    req.query.to || process.env.EMAIL_USER,
+    'Prueba Requintu',
+    '<p>Prueba de envio desde Render</p>'
+  );
+  res.json({ ok: true });
 });
 
 // -----------------------------------------------------------------------------
@@ -364,45 +359,55 @@ app.post('/api/auth/logout', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// Recuperación de contraseña
+// Recuperación de contraseña (envío vía Brevo API por HTTPS)
 // -----------------------------------------------------------------------------
-const transportadorCorreo = process.env.EMAIL_USER && process.env.EMAIL_PASSWORD
-  ? nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
-      connectionTimeout: 20000,
-      greetingTimeout: 20000,
-      socketTimeout: 25000
-    })
-  : null;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER;
+const correoConfigurado = !!BREVO_API_KEY && !!BREVO_SENDER_EMAIL;
 
-async function enviarCorreoReset(email, enlace) {
+async function enviarCorreoBrevo(destinatario, asunto, html) {
   try {
-    await transportadorCorreo.sendMail({
-      from: `"Requintu" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Recupera tu contraseña - Requintu',
-      html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #0284c7;">¿Olvidaste tu contraseña?</h2>
-          <p>Hola, recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Requintu</strong>.</p>
-          <p style="text-align: center; margin: 25px 0;">
-            <a href="${enlace}"
-               style="background: #ccff00; color: #0284c7; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
-              Restablecer contraseña
-            </a>
-          </p>
-          <p style="color: #666; font-size: 13px;">Este enlace expira en <strong>1 hora</strong> y solo puede usarse una vez.</p>
-          <p style="color: #666; font-size: 13px;">Si no solicitaste este cambio, ignora este mensaje y tu contraseña seguirá siendo la misma.</p>
-        </div>
-      `
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': BREVO_API_KEY,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: 'Requintu', email: BREVO_SENDER_EMAIL },
+        to: [{ email: destinatario }],
+        subject: asunto,
+        htmlContent: html
+      })
     });
-    console.log(`Correo de recuperación enviado a ${email}`);
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || `Brevo error ${res.status}`);
+    }
+    console.log(`Correo enviado a ${destinatario}: ${data.messageId}`);
   } catch (err) {
     console.error('Error al enviar el correo de recuperación:', err.message);
   }
+}
+
+function enviarCorreoReset(email, enlace) {
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #0284c7;">¿Olvidaste tu contraseña?</h2>
+      <p>Hola, recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Requintu</strong>.</p>
+      <p style="text-align: center; margin: 25px 0;">
+        <a href="${enlace}"
+           style="background: #ccff00; color: #0284c7; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+          Restablecer contraseña
+        </a>
+      </p>
+      <p style="color: #666; font-size: 13px;">Este enlace expira en <strong>1 hora</strong> y solo puede usarse una vez.</p>
+      <p style="color: #666; font-size: 13px;">Si no solicitaste este cambio, ignora este mensaje y tu contraseña seguirá siendo la misma.</p>
+    </div>
+  `;
+  enviarCorreoBrevo(email, 'Recupera tu contraseña - Requintu', html);
 }
 
 app.post('/api/forgot-password', authLimiter, validar([
@@ -425,11 +430,11 @@ app.post('/api/forgot-password', authLimiter, validar([
         [usuarios[0].id_usuario, hashRefreshToken(token), new Date(Date.now() + 60 * 60 * 1000)]
       );
 
-      if (transportadorCorreo) {
+      if (correoConfigurado) {
         const enlace = `${process.env.APP_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
         enviarCorreoReset(email, enlace);
       } else {
-        console.warn(`EMAIL_USER/EMAIL_PASSWORD no configurados. Token de reset generado para ${email} pero no enviado por correo.`);
+        console.warn(`BREVO_API_KEY/BREVO_SENDER_EMAIL no configurados. Token de reset generado para ${email} pero no enviado por correo.`);
       }
     }
 
