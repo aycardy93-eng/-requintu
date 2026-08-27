@@ -62,6 +62,13 @@ function LocalDetalle() {
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [errorEdicion, setErrorEdicion] = useState('');
   const [eliminando, setEliminando] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [formEdit, setFormEdit] = useState({ nombre: '', descripcion: '', direccion: '', telefono: '', imagen_url: '', id_categoria: '', id_municipio: '' });
+  const [categoriasEdit, setCategoriasEdit] = useState([]);
+  const [municipiosEdit, setMunicipiosEdit] = useState([]);
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
+  const [errorEdit, setErrorEdit] = useState('');
+  const [imagenEditFile, setImagenEditFile] = useState(null);
 
   const cargarDatos = () => {
     setCargando(true);
@@ -109,6 +116,71 @@ function LocalDetalle() {
     } catch (err) {
       alert(err.message);
       setEliminando(false);
+    }
+  };
+
+  const abrirEdicion = async () => {
+    setFormEdit({
+      nombre: local.nombre || '',
+      descripcion: local.descripcion || '',
+      direccion: local.direccion || '',
+      telefono: local.telefono || '',
+      imagen_url: local.imagen_url || '',
+      id_categoria: local.id_categoria || '',
+      id_municipio: local.id_municipio || '',
+    });
+    setImagenEditFile(null);
+    setErrorEdit('');
+    try {
+      const [catRes, munRes] = await Promise.all([
+        fetch(`${API_URL}/categorias`),
+        fetch(`${API_URL}/municipios`),
+      ]);
+      setCategoriasEdit(await catRes.json() || []);
+      setMunicipiosEdit(await munRes.json() || []);
+    } catch {}
+    setEditando(true);
+  };
+
+  const handleGuardarEdit = async (e) => {
+    e.preventDefault();
+    setGuardandoEdit(true);
+    setErrorEdit('');
+    try {
+      let imagen_url = formEdit.imagen_url || null;
+      if (imagenEditFile) {
+        const fd = new FormData();
+        fd.append('imagen', imagenEditFile);
+        const upRes = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+        const upData = await upRes.json();
+        if (!upRes.ok) throw new Error(upData.error || 'Error al subir imagen');
+        imagen_url = upData.url;
+      }
+      const res = await fetch(`${API_URL}/locales/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          nombre: formEdit.nombre,
+          descripcion: formEdit.descripcion || null,
+          direccion: formEdit.direccion,
+          telefono: formEdit.telefono || null,
+          imagen_url,
+          id_categoria: formEdit.id_categoria || null,
+          id_municipio: formEdit.id_municipio || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al actualizar');
+      setEditando(false);
+      cargarDatos();
+    } catch (err) {
+      setErrorEdit(err.message);
+    } finally {
+      setGuardandoEdit(false);
     }
   };
 
@@ -357,18 +429,79 @@ function LocalDetalle() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
         <Link to="/locales" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver a locales</Link>
         {esDueno && (
-          <button
-            onClick={handleEliminarLocal}
-            disabled={eliminando}
-            style={{
-              backgroundColor: '#dc2626', color: 'white', border: 'none',
-              padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px',
-            }}
-          >
-            {eliminando ? 'Eliminando...' : 'Eliminar local'}
-          </button>
+          <>
+            <button
+              onClick={abrirEdicion}
+              style={{
+                backgroundColor: '#2563eb', color: 'white', border: 'none',
+                padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px',
+              }}
+            >
+              Editar local
+            </button>
+            <button
+              onClick={handleEliminarLocal}
+              disabled={eliminando}
+              style={{
+                backgroundColor: '#dc2626', color: 'white', border: 'none',
+                padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px',
+              }}
+            >
+              {eliminando ? 'Eliminando...' : 'Eliminar local'}
+            </button>
+          </>
         )}
       </div>
+
+      {editando && (
+        <form onSubmit={handleGuardarEdit} style={{ background: 'rgba(18,40,61,0.85)', padding: '20px', borderRadius: '10px', marginTop: '20px' }}>
+          <h3 style={{ marginTop: 0 }}>Editar local</h3>
+          {errorEdit && <p style={{ color: '#f87171' }}>{errorEdit}</p>}
+          <div style={{ marginBottom: '12px' }}>
+            <label>Nombre:</label>
+            <input value={formEdit.nombre} onChange={e => setFormEdit({ ...formEdit, nombre: e.target.value })} required style={estiloInput} />
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label>Descripción:</label>
+            <textarea value={formEdit.descripcion} onChange={e => setFormEdit({ ...formEdit, descripcion: e.target.value })} rows={3} style={estiloInput} />
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label>Dirección:</label>
+            <input value={formEdit.direccion} onChange={e => setFormEdit({ ...formEdit, direccion: e.target.value })} style={estiloInput} />
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label>Teléfono:</label>
+            <input value={formEdit.telefono} onChange={e => setFormEdit({ ...formEdit, telefono: e.target.value })} style={estiloInput} />
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label>Categoría:</label>
+            <select value={formEdit.id_categoria} onChange={e => setFormEdit({ ...formEdit, id_categoria: e.target.value })} style={estiloInput}>
+              <option value="">Sin categoría</option>
+              {categoriasEdit.map(c => <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label>Municipio:</label>
+            <select value={formEdit.id_municipio} onChange={e => setFormEdit({ ...formEdit, id_municipio: e.target.value })} style={estiloInput}>
+              <option value="">Sin municipio</option>
+              {municipiosEdit.map(m => <option key={m.id_municipio} value={m.id_municipio}>{m.nombre} - {m.departamento}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <label>Nueva imagen:</label>
+            <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={e => setImagenEditFile(e.target.files[0])} style={{ color: 'white' }} />
+            {imagenEditFile && <p style={{ color: '#ccff00', fontSize: '12px' }}>{imagenEditFile.name}</p>}
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit" disabled={guardandoEdit} style={{ padding: '10px 18px', background: '#ccff00', color: '#0284c7', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}>
+              {guardandoEdit ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+            <button type="button" onClick={() => setEditando(false)} style={{ padding: '10px 18px', background: 'transparent', color: '#a9c9bb', border: '1px solid #a9c9bb', borderRadius: '6px', cursor: 'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
 
       <h1 style={{ margin: '15px 0 5px 0' }}>{local.nombre}</h1>
       <p style={{ color: '#a9c9bb', margin: '0 0 15px 0' }}>

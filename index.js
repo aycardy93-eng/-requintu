@@ -594,6 +594,46 @@ app.get('/api/locales/:id', async (req, res) => {
   }
 });
 
+app.put('/api/locales/:id', authMiddleware, validar([
+  body('nombre').optional().trim().isLength({ min: 2, max: 100 }),
+  body('descripcion').optional().trim().isLength({ max: 1000 }),
+  body('direccion').optional().trim(),
+  body('telefono').optional().trim().isLength({ max: 20 }),
+  body('imagen_url').optional({ values: 'falsy' }).trim(),
+  body('id_categoria').optional({ values: 'null' }).isInt(),
+  body('id_municipio').optional({ values: 'null' }).isInt()
+]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await pool.query('SELECT id_usuario FROM locales WHERE id_local = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Local no encontrado' });
+    if (rows[0].id_usuario !== req.user.id && req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'No tienes permiso para editar este local' });
+    }
+
+    const campos = [];
+    const params = [];
+    const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
+
+    if (nombre !== undefined) { campos.push('nombre = ?'); params.push(nombre); }
+    if (descripcion !== undefined) { campos.push('descripcion = ?'); params.push(descripcion || null); }
+    if (direccion !== undefined) { campos.push('direccion = ?'); params.push(direccion || null); }
+    if (telefono !== undefined) { campos.push('telefono = ?'); params.push(telefono || null); }
+    if (imagen_url !== undefined) { campos.push('imagen_url = ?'); params.push(imagen_url || null); }
+    if (id_categoria !== undefined) { campos.push('id_categoria = ?'); params.push(id_categoria || null); }
+    if (id_municipio !== undefined) { campos.push('id_municipio = ?'); params.push(id_municipio || null); }
+
+    if (campos.length === 0) return res.status(400).json({ error: 'No hay campos para actualizar' });
+
+    params.push(id);
+    await pool.query(`UPDATE locales SET ${campos.join(', ')} WHERE id_local = ?`, params);
+    res.json({ mensaje: 'Local actualizado correctamente' });
+  } catch (err) {
+    console.error('Error al actualizar local:', err.message);
+    res.status(500).json({ error: 'Error al actualizar local' });
+  }
+});
+
 app.delete('/api/locales/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
