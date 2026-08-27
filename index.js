@@ -510,6 +510,12 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
       return res.status(400).json({ error: 'Por favor selecciona un archivo' });
     }
 
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+
     const b64 = req.file.buffer.toString('base64');
     const dataURI = `data:${req.file.mimetype};base64,${b64}`;
     const result = await cloudinary.uploader.upload(dataURI, {
