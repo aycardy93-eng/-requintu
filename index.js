@@ -514,6 +514,7 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
     const apiSecret = CLOUD_API_SECRET;
 
     if (!cloudName || !apiKey || !apiSecret) {
+      console.error('Cloudinary vars:', typeof CLOUD_NAME, typeof CLOUD_API_KEY, typeof CLOUD_API_SECRET);
       return res.status(500).json({ error: 'Cloudinary no está configurado en el servidor' });
     }
 
@@ -524,18 +525,26 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
     const stringToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
     const signature = crypto.createHash('sha256').update(stringToSign).digest('hex');
 
-    const formData = new FormData();
-    formData.append('file', `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`);
-    formData.append('api_key', apiKey);
-    formData.append('timestamp', timestamp);
-    formData.append('folder', folder);
-    formData.append('public_id', publicId);
-    formData.append('signature', signature);
-    formData.append('transformation', 'c_limit,w_800,h_600');
+    const boundary = '----RequintuBoundary' + crypto.randomBytes(16).toString('hex');
+    const b64 = req.file.buffer.toString('base64');
+
+    const parts = [
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"\r\n\r\ndata:${req.file.mimetype};base64,${b64}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="api_key"\r\n\r\n${apiKey}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="timestamp"\r\n\r\n${timestamp}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="folder"\r\n\r\n${folder}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="public_id"\r\n\r\n${publicId}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="signature"\r\n\r\n${signature}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="transformation"\r\n\r\nc_limit,w_800,h_600\r\n`,
+      `--${boundary}--\r\n`,
+    ];
+
+    const body = Buffer.concat(parts.map(p => Buffer.from(p)));
 
     const result = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body,
     });
 
     const data = await result.json();
