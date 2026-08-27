@@ -18,6 +18,11 @@ import pool, { checkDatabaseHealth } from './db.js';
 
 dotenv.config();
 
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+const CLOUD_API_KEY = process.env.CLOUDINARY_API_KEY;
+const CLOUD_API_SECRET = process.env.CLOUDINARY_API_SECRET;
+console.log('Cloudinary config:', CLOUD_NAME ? 'OK' : 'FALTA', CLOUD_API_KEY ? 'OK' : 'FALTA', CLOUD_API_SECRET ? 'OK' : 'FALTA');
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -44,11 +49,6 @@ app.get('/api/debug/cloudinary', (req, res) => {
     api_secret: CLOUD_API_SECRET ? 'OK' : 'FALTA',
   });
 });
-
-const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
-const CLOUD_API_KEY = process.env.CLOUDINARY_API_KEY;
-const CLOUD_API_SECRET = process.env.CLOUDINARY_API_SECRET;
-console.log('Cloudinary config:', CLOUD_NAME ? 'OK' : 'FALTA', CLOUD_API_KEY ? 'OK' : 'FALTA', CLOUD_API_SECRET ? 'OK' : 'FALTA');
 
 // -----------------------------------------------------------------------------
 // Middlewares Globales
