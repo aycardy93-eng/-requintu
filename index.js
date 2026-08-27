@@ -365,11 +365,13 @@ app.post('/api/auth/logout', async (req, res) => {
 // -----------------------------------------------------------------------------
 const transportadorCorreo = process.env.EMAIL_USER && process.env.EMAIL_PASSWORD
   ? nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASSWORD },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 25000
     })
   : null;
 
