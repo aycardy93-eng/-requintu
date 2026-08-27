@@ -37,6 +37,14 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+app.get('/api/debug/cloudinary', (req, res) => {
+  res.json({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? 'OK' : 'FALTA',
+    api_key: process.env.CLOUDINARY_API_KEY ? 'OK' : 'FALTA',
+    api_secret: process.env.CLOUDINARY_API_SECRET ? 'OK' : 'FALTA',
+  });
+});
+
 if (process.env.CLOUDINARY_CLOUD_NAME) {
   console.log('Cloudinary configurado correctamente');
 } else {
