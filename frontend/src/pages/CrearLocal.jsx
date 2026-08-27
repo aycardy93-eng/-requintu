@@ -19,7 +19,6 @@ function CrearLocal() {
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState('');
   const [idMunicipio, setIdMunicipio] = useState('');
   const [imagenFile, setImagenFile] = useState(null);
-  const [imagenUrlInput, setImagenUrlInput] = useState('');
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
@@ -80,9 +79,7 @@ function CrearLocal() {
     try {
       let imagen_url = null;
 
-      if (imagenUrlInput.trim()) {
-        imagen_url = imagenUrlInput.trim();
-      } else if (imagenFile) {
+      if (imagenFile) {
         const formData = new FormData();
         formData.append('imagen', imagenFile);
         const uploadRes = await fetch(`${API_URL}/upload`, {
@@ -272,22 +269,15 @@ function CrearLocal() {
             )}
 
             <div style={{ marginBottom: '15px' }}>
-              <label>URL de imagen (pega el enlace de la foto):</label>
-              <input
-                type="url"
-                placeholder="https://ejemplo.com/imagen.jpg"
-                value={imagenUrlInput}
-                onChange={(e) => setImagenUrlInput(e.target.value)}
-                style={estiloInput}
-              />
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#a9c9bb' }}>
-                O selecciona un archivo de tu telefono:
+              <label>Imagen del local:</label>
+              <p style={{ margin: '2px 0 6px 0', fontSize: '12px', color: '#a9c9bb' }}>
+                Selecciona una foto desde tu celular o computador
               </p>
               <input
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
                 onChange={(e) => setImagenFile(e.target.files[0])}
-                style={{ display: 'block', marginTop: '5px' }}
+                style={{ display: 'block', marginTop: '5px', color: 'white' }}
               />
               {imagenFile && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#ccff00' }}>{imagenFile.name}</p>}
             </div>
