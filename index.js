@@ -37,6 +37,12 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+if (process.env.CLOUDINARY_CLOUD_NAME) {
+  console.log('Cloudinary configurado correctamente');
+} else {
+  console.error('ADVERTENCIA: CLOUDINARY_CLOUD_NAME no está definido');
+}
+
 // -----------------------------------------------------------------------------
 // Middlewares Globales
 // -----------------------------------------------------------------------------
@@ -505,8 +511,8 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
 
     res.json({ mensaje: 'Imagen subida correctamente', url: result.secure_url });
   } catch (err) {
-    console.error('Error al subir la imagen:', err.message);
-    res.status(500).json({ error: 'Error al subir la imagen' });
+    console.error('Error al subir la imagen:', err.message, err);
+    res.status(500).json({ error: 'Error al subir la imagen: ' + (err.message || 'Error desconocido') });
   }
 });
 
