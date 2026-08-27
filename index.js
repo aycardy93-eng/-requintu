@@ -60,6 +60,23 @@ app.get('/api/debug/email', (req, res) => {
   });
 });
 
+app.get('/api/debug/enviar-correo', async (req, res) => {
+  if (!transportadorCorreo) {
+    return res.status(500).json({ error: 'Email no configurado' });
+  }
+  try {
+    const info = await transportadorCorreo.sendMail({
+      from: `"Requintu" <${process.env.EMAIL_USER}>`,
+      to: req.query.to || process.env.EMAIL_USER,
+      subject: 'Prueba Requintu',
+      html: '<p>Prueba de envio desde Render</p>'
+    });
+    res.json({ ok: true, messageId: info.messageId, response: info.response });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // -----------------------------------------------------------------------------
 // Middlewares Globales
 // -----------------------------------------------------------------------------
