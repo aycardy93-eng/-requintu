@@ -522,7 +522,7 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
     const folder = 'requintu';
     const publicId = `requintu_${timestamp}_${Math.random().toString(36).slice(2, 8)}`;
 
-    const stringToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+    const stringToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}&transformation=c_limit,w_800,h_600${apiSecret}`;
     const signature = crypto.createHash('sha256').update(stringToSign).digest('hex');
 
     const boundary = '----RequintuBoundary' + crypto.randomBytes(16).toString('hex');
