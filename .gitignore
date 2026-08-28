@@ -29,3 +29,14 @@ frontend/android/captures/
 
 # APK generado
 Requintu-app-debug.apk
+Requintu-app-release.apk
+Requintu-app-release.aab
+
+# Claves de firma (NUNCA subir a git)
+frontend/android/requintu-release.jks
+frontend/android/keystore.properties
+frontend/android/upload_certificate.der
+
+# Assets generados para la ficha de Google Play
+Requintu-icono-play-512.png
+Requintu-feature-graphic-1024x500.png
