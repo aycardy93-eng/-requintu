@@ -210,12 +210,14 @@ test('upload acepta un JPEG genuino', async () => {
   const usuario = await registrarUsuario();
   const { token } = await (await login(usuario.email, usuario.password)).json();
 
-  const jpegMinimo = Buffer.from([
-    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-    0xff, 0xd9
-  ]);
+  // JPEG real de 2x2 px (generado, 270 bytes).
+  const jpegReal = Buffer.from(
+    '/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABgj/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABykX//Z',
+    'base64'
+  );
+
   const fd = new FormData();
-  fd.append('imagen', new Blob([jpegMinimo], { type: 'image/jpeg' }), 'real.jpg');
+  fd.append('imagen', new Blob([jpegReal], { type: 'image/jpeg' }), 'real.jpg');
 
   const res = await fetch(`${base}/api/upload`, {
     method: 'POST',

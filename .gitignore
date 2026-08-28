@@ -40,3 +40,8 @@ frontend/android/upload_certificate.der
 # Assets generados para la ficha de Google Play
 Requintu-icono-play-512.png
 Requintu-feature-graphic-1024x500.png
+
+# Artefactos de teste e2e (Playwright)
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
