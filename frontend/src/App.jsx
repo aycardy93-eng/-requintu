@@ -16,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import Admin from './pages/Admin';
 import MapaColombia from './pages/MapaColombia';
+import PoliticaPrivacidad from './pages/PoliticaPrivacidad';
 import InstallBanner from './components/InstallBanner';
 import { Link } from 'react-router-dom';
 
@@ -56,6 +57,8 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         <Route path="/olvide-password" element={<OlvidePassword />} />
+
+        <Route path="/politica-de-privacidad" element={<PoliticaPrivacidad />} />
 
         <Route path="/reset-password" element={<ResetPassword />} />
 
