@@ -1054,6 +1054,216 @@ app.delete('/api/publicaciones/:id', authMiddleware, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
+// Panel de Administración (solo rol admin)
+// -----------------------------------------------------------------------------
+app.get('/api/admin/estadisticas', authMiddleware, checkRole(['admin']), async (req, res) => {
+  try {
+    const [usuarios] = await pool.query('SELECT COUNT(*) AS total FROM usuarios');
+    const [porRol] = await pool.query(
+      'SELECT rol, COUNT(*) AS total FROM usuarios GROUP BY rol'
+    );
+    const [locales] = await pool.query('SELECT COUNT(*) AS total FROM locales');
+    const [publicaciones] = await pool.query('SELECT COUNT(*) AS total FROM publicaciones');
+    const [calificaciones] = await pool.query('SELECT COUNT(*) AS total FROM calificaciones');
+    const [promedio] = await pool.query('SELECT AVG(puntuacion) AS promedio FROM calificaciones');
+    const [planes] = await pool.query('SELECT COUNT(*) AS total FROM planes');
+    const [nuevos7d] = await pool.query(
+      "SELECT COUNT(*) AS total FROM usuarios WHERE fecha_registro >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+    );
+
+    res.json({
+      totalUsuarios: usuarios[0].total,
+      usuariosPorRol: porRol,
+      totalLocales: locales[0].total,
+      totalPublicaciones: publicaciones[0].total,
+      totalCalificaciones: calificaciones[0].total,
+      promedioCalificaciones: Number(promedio[0].promedio || 0),
+      totalPlanes: planes[0].total,
+      usuariosNuevos7dias: nuevos7d[0].total
+    });
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err.message);
+    res.status(500).json({ error: 'Error al obtener estadísticas' });
+  }
+});
+
+app.get('/api/admin/usuarios', authMiddleware, checkRole(['admin']), async (req, res) => {
+  try {
+    const { q = '', rol = '', pagina = 1, porPagina = 20 } = req.query;
+    const paginaNum = Math.max(1, Number(pagina) || 1);
+    const limite = Math.min(100, Math.max(1, Number(porPagina) || 20));
+    const offset = (paginaNum - 1) * limite;
+
+    const where = [];
+    const params = [];
+    if (q.trim()) {
+      where.push('(u.nombre LIKE ? OR u.email LIKE ?)');
+      params.push(`%${q.trim()}%`, `%${q.trim()}%`);
+    }
+    if (rol && ['admin', 'comerciante', 'turista'].includes(rol)) {
+      where.push('u.rol = ?');
+      params.push(rol);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const [totales] = await pool.query(`SELECT COUNT(*) AS total FROM usuarios u ${whereSql}`, params);
+    const [usuarios] = await pool.query(
+      `SELECT u.id_usuario, u.nombre, u.email, u.rol, u.fecha_registro, u.foto_perfil,
+              (SELECT COUNT(*) FROM locales l WHERE l.id_usuario = u.id_usuario) AS total_locales,
+              (SELECT COUNT(*) FROM publicaciones p WHERE p.usuario_id = u.id_usuario) AS total_publicaciones,
+              (SELECT COUNT(*) FROM calificaciones c WHERE c.id_usuario = u.id_usuario) AS total_calificaciones
+       FROM usuarios u ${whereSql}
+       ORDER BY u.fecha_registro DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limite, offset]
+    );
+
+    res.json({
+      usuarios,
+      total: totales[0].total,
+      pagina: paginaNum,
+      porPagina: limite
+    });
+  } catch (err) {
+    console.error('Error al listar usuarios:', err.message);
+    res.status(500).json({ error: 'Error al listar usuarios' });
+  }
+});
+
+app.put('/api/admin/usuarios/:id/rol', authMiddleware, checkRole(['admin']), validar([
+  body('rol').isIn(['admin', 'comerciante', 'turista']).withMessage('Rol inválido')
+]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rol } = req.body;
+
+    if (Number(id) === req.user.id) {
+      return res.status(400).json({ error: 'No puedes cambiar tu propio rol' });
+    }
+
+    const [existe] = await pool.query('SELECT id_usuario FROM usuarios WHERE id_usuario = ?', [id]);
+    if (existe.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    await pool.query('UPDATE usuarios SET rol = ? WHERE id_usuario = ?', [rol, id]);
+    res.json({ mensaje: 'Rol actualizado correctamente' });
+  } catch (err) {
+    console.error('Error al cambiar rol:', err.message);
+    res.status(500).json({ error: 'Error al cambiar rol' });
+  }
+});
+
+app.delete('/api/admin/usuarios/:id', authMiddleware, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (Number(id) === req.user.id) {
+      return res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
+    }
+
+    const [existe] = await pool.query('SELECT id_usuario FROM usuarios WHERE id_usuario = ?', [id]);
+    if (existe.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    await pool.query('DELETE FROM usuarios WHERE id_usuario = ?', [id]);
+    res.json({ mensaje: 'Usuario eliminado correctamente' });
+  } catch (err) {
+    console.error('Error al eliminar usuario:', err.message);
+    res.status(500).json({ error: 'Error al eliminar usuario' });
+  }
+});
+
+app.get('/api/admin/locales', authMiddleware, checkRole(['admin']), async (req, res) => {
+  try {
+    const { q = '', pagina = 1, porPagina = 30 } = req.query;
+    const paginaNum = Math.max(1, Number(pagina) || 1);
+    const limite = Math.min(100, Math.max(1, Number(porPagina) || 30));
+    const offset = (paginaNum - 1) * limite;
+
+    const where = [];
+    const params = [];
+    if (q.trim()) {
+      where.push('l.nombre LIKE ?');
+      params.push(`%${q.trim()}%`);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const [totales] = await pool.query(`SELECT COUNT(*) AS total FROM locales l ${whereSql}`, params);
+    const [locales] = await pool.query(
+      `SELECT l.id_local, l.nombre, l.direccion, l.telefono, l.imagen_url, l.id_categoria,
+              m.nombre AS municipio, c.nombre AS categoria, u.nombre AS propietario, u.email AS email_propietario,
+              (SELECT COUNT(*) FROM calificaciones cal WHERE cal.id_local = l.id_local) AS total_calificaciones,
+              (SELECT COUNT(*) FROM planes pl WHERE pl.id_local = l.id_local) AS total_planes
+       FROM locales l
+       LEFT JOIN municipios m ON l.id_municipio = m.id_municipio
+       LEFT JOIN categorias c ON l.id_categoria = c.id_categoria
+       LEFT JOIN usuarios u ON l.id_usuario = u.id_usuario
+       ${whereSql}
+       ORDER BY l.id_local DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limite, offset]
+    );
+
+    res.json({
+      locales,
+      total: totales[0].total,
+      pagina: paginaNum,
+      porPagina: limite
+    });
+  } catch (err) {
+    console.error('Error al listar locales admin:', err.message);
+    res.status(500).json({ error: 'Error al listar locales' });
+  }
+});
+
+app.get('/api/admin/publicaciones', authMiddleware, checkRole(['admin']), async (req, res) => {
+  try {
+    const { q = '', pagina = 1, porPagina = 30 } = req.query;
+    const paginaNum = Math.max(1, Number(pagina) || 1);
+    const limite = Math.min(100, Math.max(1, Number(porPagina) || 30));
+    const offset = (paginaNum - 1) * limite;
+
+    const where = [];
+    const params = [];
+    if (q.trim()) {
+      where.push('p.contenido LIKE ?');
+      params.push(`%${q.trim()}%`);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const [totales] = await pool.query(`SELECT COUNT(*) AS total FROM publicaciones p ${whereSql}`, params);
+    const [publicaciones] = await pool.query(
+      `SELECT p.id, p.contenido, p.imagen_url, p.fecha_creacion, u.nombre AS autor, u.email AS email_autor
+       FROM publicaciones p
+       LEFT JOIN usuarios u ON p.usuario_id = u.id_usuario
+       ${whereSql}
+       ORDER BY p.fecha_creacion DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limite, offset]
+    );
+
+    res.json({
+      publicaciones,
+      total: totales[0].total,
+      pagina: paginaNum,
+      porPagina: limite
+    });
+  } catch (err) {
+    console.error('Error al listar publicaciones admin:', err.message);
+    res.status(500).json({ error: 'Error al listar publicaciones' });
+  }
+});
+
+app.delete('/api/admin/publicaciones/:id', authMiddleware, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM publicaciones WHERE id = ?', [id]);
+    res.json({ mensaje: 'Publicación eliminada correctamente' });
+  } catch (err) {
+    console.error('Error al eliminar publicación admin:', err.message);
+    res.status(500).json({ error: 'Error al eliminar publicación' });
+  }
+});
+
+// -----------------------------------------------------------------------------
 // Manejo Global de Errores y Servidor
 // -----------------------------------------------------------------------------
 app.use((err, req, res, next) => {

@@ -83,6 +83,7 @@ export default function Navbar() {
           <Link to="/locales" style={navLinkStyle}>Locales</Link>
           <Link to="/publicaciones" style={navLinkStyle}>Publicaciones</Link>
           {isAuthenticated && <Link to="/mapa" style={navLinkStyle}>Mapa</Link>}
+          {usuario?.rol === 'admin' && <Link to="/admin" style={navLinkStyle}>Admin</Link>}
           {isAuthenticated ? (
             <>
               <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px' }}>
@@ -114,6 +115,9 @@ export default function Navbar() {
           <Link to="/publicaciones" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>Publicaciones</Link>
           {isAuthenticated && (
             <Link to="/mapa" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>Mapa</Link>
+          )}
+          {usuario?.rol === 'admin' && (
+            <Link to="/admin" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>Admin</Link>
           )}
           {isAuthenticated ? (
             <>
