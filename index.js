@@ -63,6 +63,10 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:5173',
   'http://localhost:4173',
   'https://requintu.vercel.app',
+  // Orígenes de la app nativa (Capacitor WebView)
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
   ...((process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean))
 ]);
 app.use(cors({
@@ -195,7 +199,7 @@ const checkRole = (roles) => {
 const COOKIE_OPCIONES = {
   httpOnly: true,
   secure: esProduccion,
-  sameSite: 'lax',
+  sameSite: esProduccion ? 'none' : 'lax',
   path: '/api/auth'
 };
 
