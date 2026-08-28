@@ -11,6 +11,18 @@
     <meta name="apple-mobile-web-app-title" content="Requintu" />
     <meta name="description" content="Conecta viajeros con negocios locales en Colombia" />
     <title>Requintu</title>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (registros) {
+          registros.forEach(function (r) { r.unregister(); });
+        });
+      }
+      if (window.caches) {
+        caches.keys().then(function (llaves) {
+          llaves.forEach(function (k) { caches.delete(k); });
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
