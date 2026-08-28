@@ -86,12 +86,10 @@ function MapaColombia() {
   };
 
   const volverAlMapa = () => {
+    // El mapa nunca se desmonta: solo se esconde el panel del departamento,
+    // y el zoom/posición se conservan. Los botones +/− siguen funcionando siempre.
     setDepartamentoSeleccionado(null);
     setMunicipios([]);
-    zoomRef.current = 1;
-    panRef.current = { x: 0, y: 0 };
-    // Aplica el reset DESPUÉS de que React vuelva a montar el mapa
-    requestAnimationFrame(aplicarTransformacion);
   };
 
   const aplicarTransformacion = () => {
@@ -103,10 +101,6 @@ function MapaColombia() {
       svg.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
     }
   };
-
-  useEffect(() => {
-    aplicarTransformacion();
-  }, [departamentoSeleccionado]);
 
   const iniciarArrastre = (e) => {
     arrastreRef.current = {
@@ -270,118 +264,132 @@ function MapaColombia() {
           boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
         }}
       >
-        {!departamentoSeleccionado ? (
-          // ===== VISTA: MAPA REAL DE COLOMBIA (SVG con contornos exactos) =====
-          <div style={{ position: 'relative' }}>
-            <div
-              ref={contenedorMapaRef}
-              className="mapa-colombia-svg"
-              onClick={manejarClicMapa}
-              onDoubleClick={() => ajustarZoom(2)}
-              onPointerDown={iniciarArrastre}
-              onPointerMove={moverArrastre}
-              onPointerUp={terminarArrastre}
-              onPointerLeave={terminarArrastre}
-              onPointerCancel={terminarArrastre}
-              dangerouslySetInnerHTML={{ __html: mapaSvgRaw }}
-            />
+        {/* ===== MAPA SIEMPRE MONTADO (zoom/pan) + panel de municipios encima ===== */}
+        <div style={{ position: 'relative' }}>
+          <div
+            ref={contenedorMapaRef}
+            className="mapa-colombia-svg"
+            onClick={manejarClicMapa}
+            onDoubleClick={() => ajustarZoom(2)}
+            onPointerDown={iniciarArrastre}
+            onPointerMove={moverArrastre}
+            onPointerUp={terminarArrastre}
+            onPointerLeave={terminarArrastre}
+            onPointerCancel={terminarArrastre}
+            dangerouslySetInnerHTML={{ __html: mapaSvgRaw }}
+          />
+
+          {departamentoSeleccionado && (
             <div
               style={{
                 position: 'absolute',
-                top: '16px',
-                right: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                zIndex: 5,
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: '#12283d',
+                borderRadius: '14px',
+                overflowY: 'auto',
+                padding: '12px',
+                zIndex: 10,
               }}
             >
               <button
                 type="button"
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  ajustarZoom(1.6);
+                onClick={volverAlMapa}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ffd45e',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  marginBottom: '15px',
+                  padding: 0,
                 }}
-                aria-label="Ampliar"
-                style={estiloBotonZoom}
               >
-                +
+                ← Volver al mapa
               </button>
-              <button
-                type="button"
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  ajustarZoom(0.625);
-                }}
-                aria-label="Reducir"
-                style={estiloBotonZoom}
-              >
-                −
-              </button>
+
+              <h2 style={{ margin: '0 0 15px 0' }}>{departamentoSeleccionado}</h2>
+
+              {cargandoMunicipios ? (
+                <p>Cargando municipios...</p>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                  {municipios.map((m) => (
+                    <button
+                      type="button"
+                      key={m.id_municipio}
+                      onClick={() => irALocalesDelMunicipio(m.id_municipio)}
+                      style={{
+                        background: '#e8b93a',
+                        color: '#12283d',
+                        border: 'none',
+                        borderRadius: '20px',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#ffd45e')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = '#e8b93a')}
+                    >
+                      {m.nombre}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <p
-              style={{
-                margin: '10px 4px 0 4px',
-                fontSize: '13px',
-                color: '#a9c9bb',
-                textAlign: 'center',
-              }}
-            >
-              Desliza para mover · usa + / − o doble toque para ampliar · toca un departamento para ver sus municipios
-            </p>
-          </div>
-        ) : (
-          // ===== VISTA: MUNICIPIOS DEL DEPARTAMENTO SELECCIONADO (ZOOM) =====
-          <div style={{ animation: 'fadeIn 0.25s ease' }}>
+          )}
+
+          <div
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              zIndex: 5,
+            }}
+          >
             <button
               type="button"
-              onClick={volverAlMapa}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#ffd45e',
-                cursor: 'pointer',
-                fontSize: '14px',
-                marginBottom: '15px',
-                padding: 0,
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                ajustarZoom(1.6);
               }}
+              aria-label="Ampliar"
+              style={estiloBotonZoom}
             >
-              ← Volver al mapa
+              +
             </button>
-
-            <h2 style={{ margin: '0 0 15px 0' }}>{departamentoSeleccionado}</h2>
-
-            {cargandoMunicipios ? (
-              <p>Cargando municipios...</p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                {municipios.map((m) => (
-                  <button
-                    key={m.id_municipio}
-                    onClick={() => irALocalesDelMunicipio(m.id_municipio)}
-                    style={{
-                      background: '#e8b93a',
-                      color: '#12283d',
-                      border: 'none',
-                      borderRadius: '20px',
-                      padding: '8px 16px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      transition: 'background 0.15s',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#ffd45e')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = '#e8b93a')}
-                  >
-                    {m.nombre}
-                  </button>
-                ))}
-              </div>
-            )}
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                ajustarZoom(0.625);
+              }}
+              aria-label="Reducir"
+              style={estiloBotonZoom}
+            >
+              −
+            </button>
           </div>
-        )}
+          <p
+            style={{
+              margin: '10px 4px 0 4px',
+              fontSize: '13px',
+              color: '#a9c9bb',
+              textAlign: 'center',
+            }}
+          >
+            Desliza para mover · usa + / − o doble toque para ampliar · toca un departamento para ver sus municipios
+          </p>
+        </div>
       </div>
     </div>
   );
