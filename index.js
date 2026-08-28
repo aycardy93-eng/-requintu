@@ -46,35 +46,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-app.get('/api/debug/cloudinary', (req, res) => {
-  res.json({
-    cloud_name: CLOUD_NAME ? 'OK' : 'FALTA',
-    api_key: CLOUD_API_KEY ? 'OK' : 'FALTA',
-    api_secret: CLOUD_API_SECRET ? 'OK' : 'FALTA',
-  });
-});
-
-app.get('/api/debug/email', (req, res) => {
-  res.json({
-    brevo_api_key: process.env.BREVO_API_KEY ? 'OK' : 'FALTA',
-    seller_email: process.env.EMAIL_USER ? 'OK' : 'FALTA',
-    app_url: process.env.APP_URL ? 'OK' : 'FALTA',
-    correo_configurado: correoConfigurado,
-  });
-});
-
-app.get('/api/debug/enviar-correo', async (req, res) => {
-  if (!correoConfigurado) {
-    return res.status(500).json({ error: 'Brevo no configurado' });
-  }
-  const resultado = await enviarCorreoBrevo(
-    req.query.to || process.env.EMAIL_USER || BREVO_SENDER_EMAIL,
-    'Prueba Requintu',
-    '<p>Prueba de envio desde Render</p>'
-  );
-  res.json(resultado);
-});
-
 // -----------------------------------------------------------------------------
 // Middlewares Globales
 // -----------------------------------------------------------------------------
