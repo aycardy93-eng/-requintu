@@ -45,7 +45,6 @@ const ID_A_DEPARTAMENTO = {
 function MapaColombia() {
   const navigate = useNavigate();
   const contenedorMapaRef = useRef(null);
-  const svgElRef = useRef(null);
   const zoomRef = useRef(1);
   const panRef = useRef({ x: 0, y: 0 });
   const arrastreRef = useRef(null);
@@ -91,21 +90,22 @@ function MapaColombia() {
     setMunicipios([]);
     zoomRef.current = 1;
     panRef.current = { x: 0, y: 0 };
-    aplicarTransformacion();
+    // Aplica el reset DESPUÉS de que React vuelva a montar el mapa
+    requestAnimationFrame(aplicarTransformacion);
   };
 
   const aplicarTransformacion = () => {
-    const svg = svgElRef.current;
+    const contenedor = contenedorMapaRef.current;
+    if (!contenedor) return;
+    const svg = contenedor.querySelector('svg');
     if (svg) {
+      svg.style.transformOrigin = '0 0';
       svg.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
     }
   };
 
   useEffect(() => {
-    if (!departamentoSeleccionado && contenedorMapaRef.current) {
-      svgElRef.current = contenedorMapaRef.current.querySelector('svg');
-      aplicarTransformacion();
-    }
+    aplicarTransformacion();
   }, [departamentoSeleccionado]);
 
   const iniciarArrastre = (e) => {
@@ -297,6 +297,7 @@ function MapaColombia() {
               }}
             >
               <button
+                type="button"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -308,6 +309,7 @@ function MapaColombia() {
                 +
               </button>
               <button
+                type="button"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -334,6 +336,7 @@ function MapaColombia() {
           // ===== VISTA: MUNICIPIOS DEL DEPARTAMENTO SELECCIONADO (ZOOM) =====
           <div style={{ animation: 'fadeIn 0.25s ease' }}>
             <button
+              type="button"
               onClick={volverAlMapa}
               style={{
                 background: 'none',
