@@ -652,6 +652,17 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), si
 ]), async (req, res) => {
   try {
     const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
+
+    if (id_municipio) {
+      const [duplicados] = await pool.query(
+        'SELECT id_local FROM locales WHERE LOWER(nombre) = LOWER(?) AND id_municipio = ? LIMIT 1',
+        [nombre, id_municipio]
+      );
+      if (duplicados.length > 0) {
+        return res.status(409).json({ error: 'Ya existe un local con ese nombre en esta ciudad.' });
+      }
+    }
+
     const [result] = await pool.query(
       'INSERT INTO locales (nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio, id_usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [nombre, descripcion, direccion, telefono || null, imagen_url || null, id_categoria, id_municipio, req.user.id]
@@ -695,7 +706,7 @@ app.put('/api/locales/:id', authMiddleware, sinGroserias(['nombre', 'descripcion
 ]), async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query('SELECT id_usuario FROM locales WHERE id_local = ?', [id]);
+    const [rows] = await pool.query('SELECT id_usuario, nombre, id_municipio FROM locales WHERE id_local = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ error: 'Local no encontrado' });
     if (rows[0].id_usuario !== req.user.id && req.user.rol !== 'admin') {
       return res.status(403).json({ error: 'No tienes permiso para editar este local' });
@@ -704,6 +715,19 @@ app.put('/api/locales/:id', authMiddleware, sinGroserias(['nombre', 'descripcion
     const campos = [];
     const params = [];
     const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
+
+    const nombreFinal = nombre !== undefined ? nombre : rows[0].nombre;
+    const municipioFinal = id_municipio !== undefined ? id_municipio : rows[0].id_municipio;
+
+    if (municipioFinal) {
+      const [duplicados] = await pool.query(
+        'SELECT id_local FROM locales WHERE LOWER(nombre) = LOWER(?) AND id_municipio = ? AND id_local != ? LIMIT 1',
+        [nombreFinal, municipioFinal, id]
+      );
+      if (duplicados.length > 0) {
+        return res.status(409).json({ error: 'Ya existe un local con ese nombre en esta ciudad.' });
+      }
+    }
 
     if (nombre !== undefined) { campos.push('nombre = ?'); params.push(nombre); }
     if (descripcion !== undefined) { campos.push('descripcion = ?'); params.push(descripcion || null); }
