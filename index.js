@@ -444,7 +444,7 @@ app.post('/api/forgot-password', authLimiter, validar([
       mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
     });
   } catch (err) {
-    console.error('Error al procesar la recuperación:', err.message);
+    console.error('Error al procesar la recuperación:', err);
     res.status(500).json({ error: 'Error al procesar la solicitud' });
   }
 });
