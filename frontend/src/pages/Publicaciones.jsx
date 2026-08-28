@@ -20,6 +20,9 @@ function Publicaciones() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
+  // Avisos en tiempo real del muro (SSE)
+  const [novedades, setNovedades] = useState(0);
+
   // Formulario de nueva publicación
   const [contenidoNuevo, setContenidoNuevo] = useState('');
   const [imagenNuevaFile, setImagenNuevaFile] = useState(null);
@@ -52,6 +55,29 @@ function Publicaciones() {
   useEffect(() => {
     cargarPublicaciones();
   }, []);
+
+  // Se suscribe a los avisos del muro. Cuando alguien publica, avisa en pantalla
+  // para que el usuario vea las novedades sin recargar. Sus propias publicaciones
+  // no generan el aviso (ya se recarga la lista automáticamente al crearlas).
+  useEffect(() => {
+    const es = new EventSource(`${BACKEND_ORIGIN}/api/eventos`);
+    es.onerror = () => { /* EventSource se reconecta solo */ };
+    es.addEventListener('nueva', (e) => {
+      try {
+        const evento = JSON.parse(e.data);
+        if (evento.usuario_id && usuarioActual && evento.usuario_id === usuarioActual.id) return;
+        setNovedades((n) => n + 1);
+      } catch { /* evento malformado: se ignora */ }
+    });
+    es.addEventListener('editada', () => cargarPublicaciones());
+    es.addEventListener('borrada', () => cargarPublicaciones());
+    return () => es.close();
+  }, [usuarioActual, token]);
+
+  const verNovedades = () => {
+    setNovedades(0);
+    cargarPublicaciones();
+  };
 
   const subirImagenSiHay = async (file) => {
     if (!file) return null;
@@ -317,6 +343,20 @@ function Publicaciones() {
         );
       })}
     </div>
+
+    {/* Aviso de nuevas publicaciones en tiempo real */}
+    {novedades > 0 && (
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '600px', zIndex: 1200, padding: '10px', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#12283d', border: '1px solid #ccff00', borderRadius: '10px', padding: '10px 14px', boxShadow: '0 6px 20px rgba(0,0,0,0.45)' }}>
+          <span style={{ color: '#e2f3ff', fontWeight: 'bold' }}>
+            Hay {novedades} publicación{novedades !== 1 ? 'es' : ''} nueva{novedades !== 1 ? 's' : ''} en el muro
+          </span>
+          <button onClick={verNovedades} style={{ background: '#ccff00', color: '#12283d', fontWeight: 'bold', border: 'none', borderRadius: '6px', padding: '7px 12px', cursor: 'pointer' }}>
+            Ver ahora
+          </button>
+        </div>
+      </div>
+    )}
     </FondoPagina>
   );
 }

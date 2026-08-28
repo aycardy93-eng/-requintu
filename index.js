@@ -985,6 +985,51 @@ app.delete('/api/planes/:id', authMiddleware, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
+// Avisos en tiempo real del muro (Server-Sent Events)
+// -----------------------------------------------------------------------------
+const clientesSSE = new Set();
+
+function emitirEventoMuro(tipo, datos) {
+  const payload = `event: ${tipo}\ndata: ${JSON.stringify(datos)}\n\n`;
+  for (const cliente of clientesSSE) {
+    try {
+      cliente.res.write(payload);
+    } catch {
+      cliente.res.end();
+      clientesSSE.delete(cliente);
+    }
+  }
+}
+
+app.get('/api/eventos', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write(': conectado\n\n');
+
+  const cliente = { res };
+  clientesSSE.add(cliente);
+
+  const latido = setInterval(() => {
+    try {
+      res.write(': latido\n\n');
+    } catch {
+      clearInterval(latido);
+      clientesSSE.delete(cliente);
+    }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(latido);
+    clientesSSE.delete(cliente);
+  });
+
+  return undefined;
+});
+
+// -----------------------------------------------------------------------------
 // CRUD: Publicaciones
 // -----------------------------------------------------------------------------
 app.get('/api/publicaciones', async (req, res) => {
@@ -1017,6 +1062,7 @@ app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), 
       [req.user.id, contenido, imagen_url || null]
     );
     res.status(201).json({ mensaje: 'Publicación creada con éxito', id: result.insertId });
+    emitirEventoMuro('nueva', { id: result.insertId, usuario_id: req.user.id, autor: req.user.nombre });
   } catch (err) {
     console.error('Error al crear publicación:', err.message);
     res.status(500).json({ error: 'Error al crear publicación' });
@@ -1052,6 +1098,7 @@ app.put('/api/publicaciones/:id', authMiddleware, sinGroserias(['contenido']), v
       params
     );
     res.json({ mensaje: 'Publicación actualizada con éxito' });
+    emitirEventoMuro('editada', { id: Number(id) });
   } catch (err) {
     console.error('Error al actualizar publicación:', err.message);
     res.status(500).json({ error: 'Error al actualizar publicación' });
@@ -1066,6 +1113,7 @@ app.delete('/api/publicaciones/:id', authMiddleware, async (req, res) => {
 
     await pool.query('DELETE FROM publicaciones WHERE id = ?', [id]);
     res.json({ mensaje: 'Publicación eliminada con éxito' });
+    emitirEventoMuro('borrada', { id: Number(id) });
   } catch (err) {
     console.error('Error al eliminar publicación:', err.message);
     res.status(500).json({ error: 'Error al eliminar publicación' });
@@ -1276,6 +1324,7 @@ app.delete('/api/admin/publicaciones/:id', authMiddleware, checkRole(['admin']),
     const { id } = req.params;
     await pool.query('DELETE FROM publicaciones WHERE id = ?', [id]);
     res.json({ mensaje: 'Publicación eliminada correctamente' });
+    emitirEventoMuro('borrada', { id: Number(id) });
   } catch (err) {
     console.error('Error al eliminar publicación admin:', err.message);
     res.status(500).json({ error: 'Error al eliminar publicación' });

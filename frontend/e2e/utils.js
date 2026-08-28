@@ -31,7 +31,7 @@ export async function loginViaApi(page, email, password) {
   if (!res.ok()) throw new Error(`login via API falló: ${res.status()}`);
 }
 
-async function obtenerTokenApi(email, password) {
+export async function obtenerTokenApi(email, password) {
   const res = await fetch(`${API}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -40,6 +40,16 @@ async function obtenerTokenApi(email, password) {
   if (!res.ok) return null;
   const body = await res.json();
   return body.token;
+}
+
+export async function crearPublicacionApi(email, password, contenido) {
+  const token = await obtenerTokenApi(email, password);
+  const res = await fetch(`${API}/publicaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ contenido })
+  });
+  if (!res.ok) throw new Error(`error creando publicación: ${res.status}`);
 }
 
 export async function borrarUsuarioApi(email, password) {
