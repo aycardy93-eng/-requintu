@@ -45,6 +45,11 @@ const ID_A_DEPARTAMENTO = {
 function MapaColombia() {
   const navigate = useNavigate();
   const contenedorMapaRef = useRef(null);
+  const svgElRef = useRef(null);
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const arrastreRef = useRef(null);
+  const movidoRef = useRef(0);
 
   const [departamentos, setDepartamentos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -84,6 +89,65 @@ function MapaColombia() {
   const volverAlMapa = () => {
     setDepartamentoSeleccionado(null);
     setMunicipios([]);
+    zoomRef.current = 1;
+    panRef.current = { x: 0, y: 0 };
+    aplicarTransformacion();
+  };
+
+  const aplicarTransformacion = () => {
+    const svg = svgElRef.current;
+    if (svg) {
+      svg.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
+    }
+  };
+
+  useEffect(() => {
+    if (!departamentoSeleccionado && contenedorMapaRef.current) {
+      svgElRef.current = contenedorMapaRef.current.querySelector('svg');
+      aplicarTransformacion();
+    }
+  }, [departamentoSeleccionado]);
+
+  const iniciarArrastre = (e) => {
+    arrastreRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: panRef.current.x,
+      panY: panRef.current.y,
+    };
+    movidoRef.current = 0;
+  };
+
+  const moverArrastre = (e) => {
+    if (!arrastreRef.current) return;
+    const dx = e.clientX - arrastreRef.current.x;
+    const dy = e.clientY - arrastreRef.current.y;
+    movidoRef.current = Math.max(movidoRef.current, Math.abs(dx) + Math.abs(dy));
+    panRef.current = {
+      x: arrastreRef.current.panX + dx,
+      y: arrastreRef.current.panY + dy,
+    };
+    aplicarTransformacion();
+  };
+
+  const terminarArrastre = () => {
+    arrastreRef.current = null;
+  };
+
+  const ajustarZoom = (factor) => {
+    const contenedor = contenedorMapaRef.current;
+    if (!contenedor) return;
+    const nuevo = Math.min(4, Math.max(1, zoomRef.current * factor));
+    const centro = {
+      x: contenedor.clientWidth / 2,
+      y: contenedor.clientHeight / 2,
+    };
+    panRef.current = {
+      x: centro.x - ((centro.x - panRef.current.x) * nuevo) / zoomRef.current,
+      y: centro.y - ((centro.y - panRef.current.y) * nuevo) / zoomRef.current,
+    };
+    zoomRef.current = nuevo;
+    aplicarTransformacion();
   };
 
   const irALocalesDelMunicipio = (idMunicipio) => {
@@ -93,6 +157,9 @@ function MapaColombia() {
   // Delegación de eventos: un solo listener detecta en qué <path> se hizo clic
   // dentro del SVG inyectado, y lo traduce al nombre real del departamento.
   const manejarClicMapa = (e) => {
+    // Si apenas se estaba arrastrando/ampliando el mapa, no abrir departamento
+    if (movidoRef.current > 6) return;
+
     const path = e.target.closest('path[id]');
     if (!path) return;
 
@@ -117,6 +184,22 @@ function MapaColombia() {
     color: 'white',
   };
 
+  const estiloBotonZoom = {
+    width: '46px',
+    height: '46px',
+    borderRadius: '8px',
+    border: 'none',
+    background: 'rgba(18,40,61,0.92)',
+    color: '#ccff00',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+    WebkitTapHighlightColor: 'transparent',
+    touchAction: 'manipulation',
+    userSelect: 'none',
+  };
+
   if (cargando) {
     return <div style={estiloPagina}><p>Cargando mapa...</p></div>;
   }
@@ -134,11 +217,15 @@ function MapaColombia() {
           background: radial-gradient(circle at 40% 35%, #5cc8fb 0%, #38bdf8 55%, #1ea3e0 100%);
           border-radius: 14px;
           padding: 10px;
+          position: relative;
+          overflow: hidden;
+          touch-action: none;
         }
         .mapa-colombia-svg svg {
           width: 100%;
           height: auto;
           display: block;
+          transform-origin: 0 0;
         }
         .mapa-colombia-svg path {
           fill: #d8c341;
@@ -185,12 +272,64 @@ function MapaColombia() {
       >
         {!departamentoSeleccionado ? (
           // ===== VISTA: MAPA REAL DE COLOMBIA (SVG con contornos exactos) =====
-          <div
-            ref={contenedorMapaRef}
-            className="mapa-colombia-svg"
-            onClick={manejarClicMapa}
-            dangerouslySetInnerHTML={{ __html: mapaSvgRaw }}
-          />
+          <div style={{ position: 'relative' }}>
+            <div
+              ref={contenedorMapaRef}
+              className="mapa-colombia-svg"
+              onClick={manejarClicMapa}
+              onDoubleClick={() => ajustarZoom(2)}
+              onPointerDown={iniciarArrastre}
+              onPointerMove={moverArrastre}
+              onPointerUp={terminarArrastre}
+              onPointerLeave={terminarArrastre}
+              onPointerCancel={terminarArrastre}
+              dangerouslySetInnerHTML={{ __html: mapaSvgRaw }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                zIndex: 5,
+              }}
+            >
+              <button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  ajustarZoom(1.6);
+                }}
+                aria-label="Ampliar"
+                style={estiloBotonZoom}
+              >
+                +
+              </button>
+              <button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  ajustarZoom(0.625);
+                }}
+                aria-label="Reducir"
+                style={estiloBotonZoom}
+              >
+                −
+              </button>
+            </div>
+            <p
+              style={{
+                margin: '10px 4px 0 4px',
+                fontSize: '13px',
+                color: '#a9c9bb',
+                textAlign: 'center',
+              }}
+            >
+              Desliza para mover · usa + / − o doble toque para ampliar · toca un departamento para ver sus municipios
+            </p>
+          </div>
         ) : (
           // ===== VISTA: MUNICIPIOS DEL DEPARTAMENTO SELECCIONADO (ZOOM) =====
           <div style={{ animation: 'fadeIn 0.25s ease' }}>

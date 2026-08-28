@@ -237,7 +237,8 @@ function Usuarios({ token }) {
         ) : usuarios.length === 0 ? (
           <p>No hay usuarios.</p>
         ) : (
-          <table style={estilos.tabla}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ ...estilos.tabla, minWidth: '640px' }}>
             <thead>
               <tr>
                 <th style={estilos.th}>Usuario</th>
@@ -288,6 +289,7 @@ function Usuarios({ token }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -376,7 +378,8 @@ function LocalesAdmin({ token }) {
         ) : locales.length === 0 ? (
           <p>No hay locales.</p>
         ) : (
-          <table style={estilos.tabla}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ ...estilos.tabla, minWidth: '760px' }}>
             <thead>
               <tr>
                 <th style={estilos.th}>Local</th>
@@ -429,6 +432,7 @@ function LocalesAdmin({ token }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -513,7 +517,8 @@ function PublicacionesAdmin({ token }) {
         ) : publicaciones.length === 0 ? (
           <p>No hay publicaciones.</p>
         ) : (
-          <table style={estilos.tabla}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ ...estilos.tabla, minWidth: '560px' }}>
             <thead>
               <tr>
                 <th style={estilos.th}>Autor</th>
@@ -555,6 +560,7 @@ function PublicacionesAdmin({ token }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

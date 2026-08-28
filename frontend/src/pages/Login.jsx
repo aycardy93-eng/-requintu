@@ -8,6 +8,7 @@ import fondoInicio from '../assets/fondo-inicio.jpg'; // O .png según la extens
 import armeniaImg from '../assets/armenia1.jpg';
 import bogotaImg from '../assets/bogota.jpg';
 import bucaramangaImg from '../assets/bucaramanga.jpg';
+import './Login.css';
 
 const imagenesCarrusel = [
   { img: bogotaImg, titulo: 'Bogotá', descripcion: 'La capital cultural y de negocios' },
@@ -72,21 +73,13 @@ export default function Login() {
   const slideActual = imagenesCarrusel[indexCarrusel];
 
   return (
-    <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 70px)' }}>
+    <div className="login-pagina">
       {/* Columna Izquierda: Carrusel con imágenes locales */}
       <div
+        className="login-carrusel"
         style={{
-          flex: 1,
-          position: 'relative',
           backgroundImage: `url(${slideActual.img})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
           transition: 'background-image 0.5s ease-in-out',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'flex-end',
-          padding: '40px',
-          color: '#fff',
         }}
       >
         {/* Contenido descriptivo del slide */}
@@ -149,16 +142,8 @@ export default function Login() {
 
       {/* Columna Derecha: Fondo 'fondo-inicio' y Formulario */}
       <div
-        style={{
-          flex: 1,
-          backgroundImage: `url(${fondoInicio})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '20px',
-        }}
+        className="login-formulario"
+        style={{ backgroundImage: `url(${fondoInicio})` }}
       >
         <div
           style={{

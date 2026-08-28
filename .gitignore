@@ -14,3 +14,18 @@ frontend/node_modules/
 dist/
 build/
 .DS_Store
+
+# App nativa (Capacitor) - artefactos de compilación y rutas de máquina
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/capacitor-cordova-android-plugins/build/
+frontend/android/local.properties
+frontend/android/.idea/
+frontend/android/captures/
+*.iml
+.externalNativeBuild
+.cxx
+
+# APK generado
+Requintu-app-debug.apk

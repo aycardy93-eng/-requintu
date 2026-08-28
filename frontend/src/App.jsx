@@ -1,4 +1,5 @@
 
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
@@ -19,6 +20,31 @@ import InstallBanner from './components/InstallBanner';
 import { Link } from 'react-router-dom';
 
 function App() {
+  useEffect(() => {
+    let activo = true;
+
+    (async () => {
+      try {
+        const { App } = await import('@capacitor/app');
+        if (!activo) return;
+
+        await App.addListener('backButton', ({ canGoBack }) => {
+          if (canGoBack) {
+            window.history.back();
+          } else {
+            App.exitApp();
+          }
+        });
+      } catch {
+        // No corre en navegador web, se ignora.
+      }
+    })();
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
   return (
     <>
       <Navbar />

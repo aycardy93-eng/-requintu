@@ -1,0 +1,8 @@
+{
+  "appId": "com.requintu.app",
+  "appName": "Requintu",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#12283d"
+  }
+}
