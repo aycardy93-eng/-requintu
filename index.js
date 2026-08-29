@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { v2 as cloudinary } from 'cloudinary';
 import pool, { checkDatabaseHealth } from './db.js';
+import { encolarCorreo, iniciarColaCorreos } from './emailQueue.js';
 import { contieneGroserias } from './filtroProfano.js';
 
 import nodeDns from 'node:dns';
@@ -334,40 +335,9 @@ app.post('/api/auth/logout', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// Recuperación de contraseña (envío vía Brevo API por HTTPS)
+// Recuperación de contraseña (envío vía cola de correos con Brevo)
 // -----------------------------------------------------------------------------
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER;
-const correoConfigurado = !!BREVO_API_KEY && !!BREVO_SENDER_EMAIL;
-
-async function enviarCorreoBrevo(destinatario, asunto, html) {
-  try {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': BREVO_API_KEY,
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        sender: { name: 'Requintu', email: BREVO_SENDER_EMAIL },
-        to: [{ email: destinatario }],
-        subject: asunto,
-        htmlContent: html
-      })
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.message || `Brevo error ${res.status}`);
-    }
-    console.log(`Correo enviado a ${destinatario}: ${data.messageId}`);
-    return { ok: true, messageId: data.messageId };
-  } catch (err) {
-    console.error('Error al enviar el correo de recuperación:', err.message);
-    return { ok: false, error: err.message };
-  }
-}
+const correoConfigurado = !!process.env.BREVO_API_KEY && !!(process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER);
 
 function enviarCorreoReset(email, enlace) {
   const html = `
@@ -384,7 +354,13 @@ function enviarCorreoReset(email, enlace) {
       <p style="color: #666; font-size: 13px;">Si no solicitaste este cambio, ignora este mensaje y tu contraseña seguirá siendo la misma.</p>
     </div>
   `;
-  enviarCorreoBrevo(email, 'Recupera tu contraseña - Requintu', html);
+
+  // El envío va a la cola (con reintentos y backoff); nunca bloquea la respuesta.
+  encolarCorreo({
+    destinatario: email,
+    asunto: 'Recupera tu contraseña - Requintu',
+    html
+  });
 }
 
 app.post('/api/forgot-password', authLimiter, validar([
@@ -1351,6 +1327,7 @@ app.use((err, req, res, next) => {
 async function arrancarServidor() {
   try {
     await checkDatabaseHealth();
+    await iniciarColaCorreos();
     app.listen(PORT, () => {
       console.log(`Servidor de Requintu ejecutándose en el puerto ${PORT}`);
     });

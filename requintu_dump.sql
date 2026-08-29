@@ -110,8 +110,24 @@ CREATE TABLE `refresh_tokens` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `token_hash` (`token_hash`),
   KEY `idx_usuario` (`id_usuario`),
-  KEY `idx_expira` (`expira_en`)
+KEY `idx_expira` (`expira_en`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `cola_emails`;
+CREATE TABLE `cola_emails` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `destinatario` varchar(255) NOT NULL,
+  `asunto` varchar(255) NOT NULL,
+  `html` mediumtext NOT NULL,
+  `estado` enum('pendiente','enviado','fallido') NOT NULL DEFAULT 'pendiente',
+  `intentos` tinyint unsigned NOT NULL DEFAULT '0',
+  `proximo_intento` datetime DEFAULT NULL,
+  `error` varchar(500) DEFAULT NULL,
+  `creado_en` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `enviado_en` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_estado_proximo` (`estado`,`proximo_intento`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 DROP TABLE IF EXISTS `usuarios`;
 CREATE TABLE `usuarios` (
