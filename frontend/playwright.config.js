@@ -15,9 +15,15 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: [
     {
-      // Backend local (usa el .env de la raíz y la BD)
+      // Backend local (usa el .env de la raíz y la BD).
+      // Los límites de rate limiting se elevan para no tumbar la suite e2e.
       command: 'node ./index.js',
       cwd: '..',
+      env: {
+        ...process.env,
+        RATE_LIMIT_AUTH_MAX: '500',
+        RATE_LIMIT_API_MAX: '5000',
+      },
       url: 'http://127.0.0.1:3000/api/municipios',
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,

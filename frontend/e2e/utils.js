@@ -21,8 +21,10 @@ export async function loginUI(page, email, password) {
   await page.getByRole('button', { name: 'Ingresar' }).click();
 }
 
-export async function registrarApi(page, { nombre = 'Test E2E', email, password = 'ClaveSegura123' }) {
-  const res = await page.request.post(`${API}/register`, { data: { nombre, email, password } });
+export async function registrarApi(page, { nombre = 'Test E2E', email, password = 'ClaveSegura123', rol } = {}) {
+  const data = { nombre, email, password };
+  if (rol) data.rol = rol;
+  const res = await page.request.post(`${API}/register`, { data });
   if (!res.ok()) throw new Error(`register via API falló: ${res.status()}`);
 }
 
@@ -50,6 +52,28 @@ export async function crearPublicacionApi(email, password, contenido) {
     body: JSON.stringify({ contenido })
   });
   if (!res.ok) throw new Error(`error creando publicación: ${res.status}`);
+}
+
+export async function crearLocalApi(email, password, { nombre, descripcion, direccion }) {
+  const token = await obtenerTokenApi(email, password);
+  const res = await fetch(`${API}/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre, descripcion, direccion })
+  });
+  if (!res.ok) throw new Error(`error creando local: ${res.status}`);
+  const body = await res.json();
+  return body.id;
+}
+
+export async function calificarLocalApi(email, password, idLocal, { puntuacion, comentario }) {
+  const token = await obtenerTokenApi(email, password);
+  const res = await fetch(`${API}/locales/${idLocal}/calificaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ puntuacion, comentario })
+  });
+  if (!res.ok) throw new Error(`error calificando local: ${res.status}`);
 }
 
 export async function borrarUsuarioApi(email, password) {

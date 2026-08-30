@@ -15,7 +15,7 @@ test('registro, inicio de sesión, cierre de sesión y limpieza del usuario', as
   await loginUI(page, email, password);
   await expect(page.getByText(/Hola, Usuario E2E/)).toBeVisible();
 
-  await page.getByRole('button', { name: 'Cerrar sesion' }).click();
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await expect(page.getByRole('link', { name: 'Iniciar / Registrarse' })).toBeVisible();
 
   await borrarUsuarioApi(email, password);
@@ -34,6 +34,6 @@ test('el mapa aparece solo con sesión iniciada', async ({ page }) => {
   await page.goto('/mapa');
   await expect(page.locator('svg')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Cerrar sesion' }).click();
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await borrarUsuarioApi(email, password);
 });
