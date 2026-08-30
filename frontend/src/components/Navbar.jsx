@@ -26,11 +26,14 @@ export default function Navbar() {
 
   return (
     <nav style={{
-      backgroundColor: '#38bdf8',
+      backgroundColor: '#12283d',
       color: '#ccff00',
       fontFamily: 'sans-serif',
-      position: 'relative',
+      position: 'sticky',
+      top: 0,
       zIndex: 100,
+      boxShadow: '0 2px 12px rgba(0,0,0,0.35)',
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
     }}>
       <div style={{
         display: 'flex',
@@ -86,18 +89,20 @@ export default function Navbar() {
           {usuario?.rol === 'admin' && <Link to="/admin" style={navLinkStyle}>Admin</Link>}
           {isAuthenticated ? (
             <>
-              <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px' }}>
+              <span style={{ color: '#e2f3ff', fontWeight: 'bold', fontSize: '14px' }}>
                 Hola, {nombreUsuario}
               </span>
               <button onClick={handleLogout} style={{
-                backgroundColor: '#ccff00', color: '#0284c7', border: 'none',
+                backgroundColor: '#ccff00', color: '#12283d', border: 'none',
                 padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
-              }}>Cerrar sesion</button>
+                transition: 'transform 0.12s ease, background-color 0.15s ease',
+              }}>Cerrar sesión</button>
             </>
           ) : (
             <Link to="/login" style={{
-              backgroundColor: '#ccff00', color: '#0284c7', padding: '8px 16px',
+              backgroundColor: '#ccff00', color: '#12283d', padding: '8px 16px',
               borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold',
+              transition: 'transform 0.12s ease, background-color 0.15s ease',
             }}>Iniciar / Registrarse</Link>
           )}
         </div>
@@ -121,18 +126,18 @@ export default function Navbar() {
           )}
           {isAuthenticated ? (
             <>
-              <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px', padding: '8px 0' }}>
+              <span style={{ color: '#e2f3ff', fontWeight: 'bold', fontSize: '14px', padding: '8px 0' }}>
                 Hola, {nombreUsuario}
               </span>
               <button onClick={handleLogout} style={{
-                backgroundColor: '#ccff00', color: '#0284c7', border: 'none',
+                backgroundColor: '#ccff00', color: '#12283d', border: 'none',
                 padding: '10px 16px', borderRadius: '6px', cursor: 'pointer',
                 fontWeight: 'bold', marginTop: '4px', width: '100%',
-              }}>Cerrar sesion</button>
+              }}>Cerrar sesión</button>
             </>
           ) : (
             <Link to="/login" onClick={() => setMenuAbierto(false)} style={{
-              backgroundColor: '#ccff00', color: '#0284c7', padding: '10px 16px',
+              backgroundColor: '#ccff00', color: '#12283d', padding: '10px 16px',
               borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold',
               textAlign: 'center', marginTop: '4px', display: 'block',
             }}>Iniciar / Registrarse</Link>

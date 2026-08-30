@@ -15,7 +15,7 @@ import fondoMar from '../assets/fondo-mapa.jpg';
 function FondoPagina({ children, opacidad = 0.72 }) {
   const estilo = {
     minHeight: '100vh',
-    backgroundImage: `linear-gradient(rgba(6, 26, 20, ${opacidad}), rgba(6, 26, 20, ${opacidad})), url(${fondoMar})`,
+    backgroundImage: `linear-gradient(rgba(18, 40, 61, ${opacidad}), rgba(18, 40, 61, ${opacidad})), url(${fondoMar})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundAttachment: 'fixed',

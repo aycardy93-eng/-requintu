@@ -82,7 +82,11 @@ export default function Locales() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Locales turísticos</h1>
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <Link to="/crear-local" style={{ color: '#ccff00', textDecoration: 'none', fontWeight: 'bold' }}>
+            <Link to="/crear-local" style={{
+              backgroundColor: '#ccff00', color: '#12283d', textDecoration: 'none',
+              fontWeight: 'bold', padding: '8px 14px', borderRadius: '6px',
+              transition: 'transform 0.12s ease, background-color 0.15s ease',
+            }}>
               + Crear local
             </Link>
             <Link to="/" style={{ color: '#ccff00', textDecoration: 'none', fontWeight: '500' }}>
@@ -147,6 +151,11 @@ export default function Locales() {
         {cargando && <p>Cargando locales...</p>}
         {error && <p style={{ color: '#ffb4b4' }}>{error}</p>}
         {!cargando && !error && locales.length === 0 && <p>No se encontraron locales con esos filtros.</p>}
+        {!cargando && !error && locales.length > 0 && (
+          <p style={{ color: '#a9c9bb', fontSize: '14px', margin: '0 0 12px 0' }}>
+            {locales.length} {locales.length === 1 ? 'lugar encontrado' : 'lugares encontrados'} en Colombia
+          </p>
+        )}
 
         {/* Grid de Tarjetas */}
         <div
@@ -170,6 +179,17 @@ export default function Locales() {
                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                   backgroundColor: 'rgba(18, 40, 61, 0.75)',
                   height: '100%',
+                  transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,0.35)';
+                  e.currentTarget.style.borderColor = 'rgba(204,255,0,0.45)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
                 }}
               >
                 <div

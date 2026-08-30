@@ -208,7 +208,7 @@ function MapaColombia() {
           del archivo (verde genérico) para combinar con la paleta de Requintu. */}
       <style>{`
         .mapa-colombia-svg {
-          background: radial-gradient(circle at 40% 35%, #5cc8fb 0%, #38bdf8 55%, #1ea3e0 100%);
+          background: radial-gradient(circle at 40% 35%, #1e4d6e 0%, #14324e 55%, #0e2036 100%);
           border-radius: 14px;
           padding: 10px;
           position: relative;
@@ -222,17 +222,17 @@ function MapaColombia() {
           transform-origin: 0 0;
         }
         .mapa-colombia-svg path {
-          fill: #d8c341;
-          stroke: #0d3b2e;
+          fill: #2a6a94;
+          stroke: #0d2030;
           stroke-width: 1.2;
           cursor: pointer;
           transition: fill 0.15s ease;
         }
         .mapa-colombia-svg path:hover {
-          fill: #f2df6e;
+          fill: #3d86b5;
         }
         .mapa-colombia-svg path.seleccionado {
-          fill: #ffcc33;
+          fill: #ccff00;
         }
         .mapa-colombia-svg text {
           font-size: 22px;
@@ -240,7 +240,7 @@ function MapaColombia() {
           font-family: sans-serif;
           fill: #ffffff;
           paint-order: stroke;
-          stroke: #0d2c3f;
+          stroke: #0d2030;
           stroke-width: 4px;
           pointer-events: none;
           user-select: none;
@@ -300,7 +300,7 @@ function MapaColombia() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#ffd45e',
+                  color: '#ccff00',
                   cursor: 'pointer',
                   fontSize: '14px',
                   marginBottom: '15px',
@@ -322,7 +322,7 @@ function MapaColombia() {
                       key={m.id_municipio}
                       onClick={() => irALocalesDelMunicipio(m.id_municipio)}
                       style={{
-                        background: '#e8b93a',
+                        background: '#ccff00',
                         color: '#12283d',
                         border: 'none',
                         borderRadius: '20px',
@@ -330,10 +330,10 @@ function MapaColombia() {
                         cursor: 'pointer',
                         fontSize: '14px',
                         fontWeight: 'bold',
-                        transition: 'background 0.15s',
+                        transition: 'background 0.15s, transform 0.12s ease',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#ffd45e')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = '#e8b93a')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#d8ff4d')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = '#ccff00')}
                     >
                       {m.nombre}
                     </button>

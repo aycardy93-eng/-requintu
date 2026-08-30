@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FondoPagina from '../components/FondoPagina';
 import { API_URL } from '../config';
 
 function Perfil() {
@@ -136,99 +137,123 @@ function Perfil() {
     }
   };
 
-  if (cargando) return <p style={{ padding: '20px' }}>Cargando perfil...</p>;
+  const estiloInput = {
+    boxSizing: 'border-box',
+    display: 'block',
+    width: '100%',
+    marginTop: '5px',
+    padding: '9px',
+    borderRadius: '6px',
+    border: '1px solid rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    color: '#12283d',
+  };
+
+  if (cargando) return <FondoPagina><p style={{ padding: '20px' }}>Cargando perfil...</p></FondoPagina>;
 
   return (
-    <main style={{ maxWidth: '500px', margin: '40px auto', padding: '0 15px', fontFamily: 'sans-serif' }}>
-      <h1>Mi perfil</h1>
-      <p style={{ color: '#666' }}>Tipo de cuenta: <strong>{rol || 'usuario'}</strong></p>
+    <FondoPagina>
+      <main style={{ maxWidth: '500px', margin: '40px auto', padding: '0 15px', fontFamily: 'sans-serif' }}>
+        <h1 style={{ marginTop: 0 }}>Mi perfil</h1>
+        <p style={{ color: '#a9c9bb' }}>Tipo de cuenta: <strong style={{ color: '#ccff00' }}>{rol || 'usuario'}</strong></p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', margin: '20px 0' }}>
-        {fotoPerfil ? (
-          <img
-            src={fotoPerfil}
-            alt="Foto de perfil"
-            style={{ width: '86px', height: '86px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #1b5e3a' }}
-          />
-        ) : (
-          <div style={{ width: '86px', height: '86px', borderRadius: '50%', background: '#1b5e3a', color: 'white', display: 'grid', placeItems: 'center', fontSize: '32px', fontWeight: 'bold' }}>
-            {(nombre || 'U').charAt(0).toUpperCase()}
+        <div style={{
+          background: 'rgba(18, 40, 61, 0.85)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: '12px',
+          padding: '30px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+            {fotoPerfil ? (
+              <img
+                src={fotoPerfil}
+                alt="Foto de perfil"
+                style={{ width: '86px', height: '86px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #ccff00' }}
+              />
+            ) : (
+              <div style={{ width: '86px', height: '86px', borderRadius: '50%', background: '#0d1f30', border: '2px solid #ccff00', color: '#ccff00', display: 'grid', placeItems: 'center', fontSize: '32px', fontWeight: 'bold' }}>
+                {(nombre || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <label htmlFor="fotoPerfil" style={{ color: '#a9c9bb' }}>Foto de perfil</label>
+              <input
+                id="fotoPerfil"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                onChange={seleccionarFoto}
+                style={{ display: 'block', marginTop: '6px', color: '#e2f3ff' }}
+              />
+            </div>
           </div>
-        )}
-        <div>
-          <label htmlFor="fotoPerfil">Foto de perfil</label>
-          <input
-            id="fotoPerfil"
-            type="file"
-            accept=".jpg,.jpeg,.png,.webp"
-            onChange={seleccionarFoto}
-            style={{ display: 'block', marginTop: '6px' }}
-          />
+
+          {error && <p style={{ color: '#ffb4b4', background: 'rgba(255,180,180,0.12)', padding: '10px', borderRadius: '6px' }}>{error}</p>}
+          {exito && <p style={{ color: '#a9f0b4', background: 'rgba(169,240,180,0.12)', padding: '10px', borderRadius: '6px' }}>{exito}</p>}
+
+          <form onSubmit={guardarPerfil}>
+            <div style={{ marginBottom: '15px' }}>
+              <label htmlFor="nombre" style={{ color: '#dce8e3' }}>Nombre</label>
+              <input
+                id="nombre"
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                required
+                style={estiloInput}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label htmlFor="email" style={{ color: '#dce8e3' }}>Correo electrónico</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                style={estiloInput}
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label htmlFor="password" style={{ color: '#dce8e3' }}>Nueva contraseña <span style={{ color: '#a9c9bb' }}>(opcional)</span></label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={6}
+                placeholder="Déjala vacía para conservar la actual"
+                style={estiloInput}
+              />
+            </div>
+
+            <button type="submit" disabled={guardando} style={{
+              padding: '10px 20px', backgroundColor: '#ccff00', color: '#12283d', border: 'none',
+              borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer',
+            }}>
+              {guardando ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </form>
+
+          <hr style={{ margin: '30px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.15)' }} />
+
+          <button
+            onClick={handleEliminarCuenta}
+            disabled={eliminando}
+            style={{
+              padding: '10px 18px', backgroundColor: '#dc2626', color: 'white',
+              border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
+            }}
+          >
+            {eliminando ? 'Eliminando...' : 'Eliminar mi cuenta'}
+          </button>
+          <p style={{ fontSize: '12px', color: '#a9c9bb', marginTop: '6px' }}>
+            Esta acción borra permanentemente tu cuenta y todos tus datos.
+          </p>
         </div>
-      </div>
-
-      {error && <p style={{ color: '#b00020', background: '#fee', padding: '10px' }}>{error}</p>}
-      {exito && <p style={{ color: '#176b32', background: '#efe', padding: '10px' }}>{exito}</p>}
-
-      <form onSubmit={guardarPerfil}>
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="nombre">Nombre</label>
-          <input
-            id="nombre"
-            type="text"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-            style={{ boxSizing: 'border-box', display: 'block', width: '100%', marginTop: '5px', padding: '9px' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="email">Correo electrónico</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ boxSizing: 'border-box', display: 'block', width: '100%', marginTop: '5px', padding: '9px' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label htmlFor="password">Nueva contraseña <span style={{ color: '#666' }}>(opcional)</span></label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
-            placeholder="Déjala vacía para conservar la actual"
-            style={{ boxSizing: 'border-box', display: 'block', width: '100%', marginTop: '5px', padding: '9px' }}
-          />
-        </div>
-
-        <button type="submit" disabled={guardando} style={{ padding: '10px 18px' }}>
-          {guardando ? 'Guardando...' : 'Guardar cambios'}
-        </button>
-      </form>
-
-      <hr style={{ margin: '30px 0', border: 'none', borderTop: '1px solid #ddd' }} />
-
-      <button
-        onClick={handleEliminarCuenta}
-        disabled={eliminando}
-        style={{
-          padding: '10px 18px', backgroundColor: '#dc2626', color: 'white',
-          border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
-        }}
-      >
-        {eliminando ? 'Eliminando...' : 'Eliminar mi cuenta'}
-      </button>
-      <p style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
-        Esta acción borra permanentemente tu cuenta y todos tus datos.
-      </p>
-    </main>
+      </main>
+    </FondoPagina>
   );
 }
 

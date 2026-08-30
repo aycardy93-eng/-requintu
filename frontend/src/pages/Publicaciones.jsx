@@ -13,6 +13,46 @@ const resolverImagenUrl = (url) => {
   return `${BACKEND_ORIGIN}${url}`;
 };
 
+const estiloTexto = {
+  width: '100%',
+  padding: '10px',
+  borderRadius: '6px',
+  border: '1px solid rgba(255,255,255,0.25)',
+  backgroundColor: 'rgba(255,255,255,0.95)',
+  color: '#12283d',
+  marginBottom: '10px',
+  minHeight: '70px',
+  boxSizing: 'border-box',
+};
+
+const estiloError = {
+  color: '#ffb4b4',
+  background: 'rgba(255,180,180,0.12)',
+  padding: '8px',
+  borderRadius: '6px',
+};
+
+const estiloBotonPrimario = {
+  backgroundColor: '#ccff00',
+  color: '#12283d',
+  border: 'none',
+  borderRadius: '6px',
+  fontWeight: 'bold',
+  cursor: 'pointer',
+  padding: '8px 16px',
+  transition: 'transform 0.12s ease, opacity 0.15s ease',
+};
+
+const estiloBotonSecundario = {
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.3)',
+  color: '#a9c9bb',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontWeight: 'bold',
+  padding: '6px 12px',
+};
+
 function Publicaciones() {
   const { token, isAuthenticated, usuario: usuarioActual } = useAuth();
 
@@ -227,24 +267,24 @@ function Publicaciones() {
       {isAuthenticated ? (
         <form onSubmit={handleCrear} style={{ marginBottom: '25px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(18, 40, 61, 0.75)', borderRadius: '8px', padding: '15px' }}>
           {errorNuevo && (
-            <p style={{ color: 'red', background: '#fee', padding: '8px' }}>{errorNuevo}</p>
+            <p style={estiloError}>{errorNuevo}</p>
           )}
 
           <textarea
             placeholder="¿Qué quieres compartir?"
             value={contenidoNuevo}
             onChange={(e) => setContenidoNuevo(e.target.value)}
-            style={{ width: '100%', padding: '8px', minHeight: '70px', marginBottom: '10px' }}
+            style={estiloTexto}
           />
 
           <input
             type="file"
             accept=".jpg,.jpeg,.png,.webp"
             onChange={(e) => setImagenNuevaFile(e.target.files[0])}
-            style={{ display: 'block', marginBottom: '10px' }}
+            style={{ display: 'block', marginBottom: '10px', color: '#e2f3ff' }}
           />
 
-          <button type="submit" disabled={enviando} style={{ padding: '8px 16px' }}>
+          <button type="submit" disabled={enviando} style={{ ...estiloBotonPrimario, opacity: enviando ? 0.6 : 1 }}>
             {enviando ? 'Publicando...' : 'Publicar'}
           </button>
         </form>
@@ -256,7 +296,7 @@ function Publicaciones() {
 
       {/* Estado de carga / error */}
       {cargando && <p>Cargando publicaciones...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p style={{ color: '#ffb4b4' }}>{error}</p>}
       {!cargando && !error && publicaciones.length === 0 && <p>Aún no hay publicaciones.</p>}
 
       {/* Lista de publicaciones */}
@@ -276,13 +316,13 @@ function Publicaciones() {
             {enEdicion ? (
               <div>
                 {errorEdit && (
-                  <p style={{ color: 'red', background: '#fee', padding: '8px' }}>{errorEdit}</p>
+                  <p style={estiloError}>{errorEdit}</p>
                 )}
 
                 <textarea
                   value={contenidoEdit}
                   onChange={(e) => setContenidoEdit(e.target.value)}
-                  style={{ width: '100%', padding: '8px', minHeight: '70px', marginBottom: '10px' }}
+                  style={estiloTexto}
                 />
 
                 {pub.imagen_url && !imagenEditFile && (
@@ -304,11 +344,11 @@ function Publicaciones() {
                 <button
                   onClick={() => handleGuardarEdicion(pub)}
                   disabled={guardandoEdit}
-                  style={{ padding: '6px 14px', marginRight: '8px' }}
+                  style={{ ...estiloBotonPrimario, padding: '6px 14px', marginRight: '8px', opacity: guardandoEdit ? 0.6 : 1 }}
                 >
                   {guardandoEdit ? 'Guardando...' : 'Guardar'}
                 </button>
-                <button onClick={handleCancelarEdicion} style={{ padding: '6px 14px' }}>
+                <button onClick={handleCancelarEdicion} style={estiloBotonSecundario}>
                   Cancelar
                 </button>
               </div>
@@ -326,12 +366,12 @@ function Publicaciones() {
 
                 {esAutor && (
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => handleIniciarEdicion(pub)} style={{ padding: '5px 12px' }}>
+                    <button onClick={() => handleIniciarEdicion(pub)} style={estiloBotonSecundario}>
                       Editar
                     </button>
                     <button
                       onClick={() => handleEliminar(pub.id)}
-                      style={{ padding: '5px 12px', color: '#c00' }}
+                      style={{ ...estiloBotonSecundario, color: '#ff8080' }}
                     >
                       Eliminar
                     </button>

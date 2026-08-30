@@ -69,6 +69,8 @@ function LocalDetalle() {
   const [guardandoEdit, setGuardandoEdit] = useState(false);
   const [errorEdit, setErrorEdit] = useState('');
   const [imagenEditFile, setImagenEditFile] = useState(null);
+  const [confirmacion, setConfirmacion] = useState(null);
+  const [aviso, setAviso] = useState('');
 
   const cargarDatos = () => {
     setCargando(true);
@@ -102,21 +104,25 @@ function LocalDetalle() {
     local.id_usuario === usuarioActual.id || usuarioActual.rol === 'admin'
   );
 
-  const handleEliminarLocal = async () => {
-    if (!window.confirm('¿Seguro que quieres eliminar este local? Esta acción no se puede deshacer.')) return;
-    setEliminando(true);
-    try {
-      const res = await fetch(`${API_URL}/locales/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al eliminar');
-      navigate('/locales');
-    } catch (err) {
-      alert(err.message);
-      setEliminando(false);
-    }
+  const handleEliminarLocal = () => {
+    setConfirmacion({
+      mensaje: '¿Seguro que quieres eliminar este local? Esta acción no se puede deshacer.',
+      accion: async () => {
+        setEliminando(true);
+        try {
+          const res = await fetch(`${API_URL}/locales/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error al eliminar');
+          navigate('/locales');
+        } catch (err) {
+          setAviso(err.message);
+          setEliminando(false);
+        }
+      },
+    });
   };
 
   const abrirEdicion = async () => {
@@ -363,29 +369,31 @@ function LocalDetalle() {
     }
   };
 
-  const eliminarPlan = async (plan) => {
-    const confirmar = window.confirm(`¿Eliminar "${plan.titulo}"? Esta acción no se puede deshacer.`);
-    if (!confirmar) return;
+  const eliminarPlan = (plan) => {
+    setConfirmacion({
+      mensaje: `¿Eliminar "${plan.titulo}"? Esta acción no se puede deshacer.`,
+      accion: async () => {
+        try {
+          const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
 
-    try {
-      const res = await fetch(`${API_URL}/planes/${plan.id_plan}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Error al eliminar la promoción o evento.');
+          }
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Error al eliminar la promoción o evento.');
-      }
-
-      if (planEditando === plan.id_plan) {
-        cancelarEdicionPlan();
-      }
-      setExitoPlan('Promoción/evento eliminado correctamente.');
-      cargarDatos();
-    } catch (err) {
-      alert(err.message);
-    }
+          if (planEditando === plan.id_plan) {
+            cancelarEdicionPlan();
+          }
+          setExitoPlan('Promoción/evento eliminado correctamente.');
+          cargarDatos();
+        } catch (err) {
+          setAviso(err.message);
+        }
+      },
+    });
   };
 
   if (cargando) return <FondoPagina><p style={{ padding: '20px' }}>Cargando...</p></FondoPagina>;
@@ -433,8 +441,9 @@ function LocalDetalle() {
             <button
               onClick={abrirEdicion}
               style={{
-                backgroundColor: '#2563eb', color: 'white', border: 'none',
+                backgroundColor: '#ccff00', color: '#12283d', border: 'none',
                 padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px',
+                transition: 'transform 0.12s ease',
               }}
             >
               Editar local
@@ -445,6 +454,7 @@ function LocalDetalle() {
               style={{
                 backgroundColor: '#dc2626', color: 'white', border: 'none',
                 padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px',
+                opacity: eliminando ? 0.6 : 1,
               }}
             >
               {eliminando ? 'Eliminando...' : 'Eliminar local'}
@@ -452,6 +462,19 @@ function LocalDetalle() {
           </>
         )}
       </div>
+
+      {aviso && (
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+          color: '#ffb4b4', background: 'rgba(255,180,180,0.12)', padding: '10px 14px',
+          borderRadius: '8px', marginTop: '15px',
+        }}>
+          <span style={{ fontSize: '14px' }}>{aviso}</span>
+          <button onClick={() => setAviso('')} style={{
+            background: 'none', border: 'none', color: '#ffb4b4', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px',
+          }}>✕</button>
+        </div>
+      )}
 
       {editando && (
         <form onSubmit={handleGuardarEdit} style={{ background: 'rgba(18,40,61,0.85)', padding: '20px', borderRadius: '10px', marginTop: '20px' }}>
@@ -566,8 +589,15 @@ function LocalDetalle() {
                 </div>
                 <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => setImagenEditadaFile(e.target.files[0])} style={{ marginBottom: '10px' }} />
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button type="submit" disabled={guardandoEdicion}>{guardandoEdicion ? 'Guardando...' : 'Guardar cambios'}</button>
-                  <button type="button" onClick={cancelarEdicionPlan}>Cancelar</button>
+                  <button type="submit" disabled={guardandoEdicion} style={{
+                    backgroundColor: '#ccff00', color: '#12283d', border: 'none',
+                    borderRadius: '6px', padding: '8px 14px', fontWeight: 'bold', cursor: 'pointer',
+                    opacity: guardandoEdicion ? 0.6 : 1,
+                  }}>{guardandoEdicion ? 'Guardando...' : 'Guardar cambios'}</button>
+                  <button type="button" onClick={cancelarEdicionPlan} style={{
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.3)',
+                    color: '#a9c9bb', borderRadius: '6px', padding: '8px 14px', cursor: 'pointer', fontWeight: 'bold',
+                  }}>Cancelar</button>
                 </div>
               </form>
             ) : (
@@ -586,10 +616,16 @@ function LocalDetalle() {
                 </p>
                 {puedeGestionarPlanes && (
                   <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                    <button type="button" onClick={() => iniciarEdicionPlan(plan)}>
+                    <button type="button" onClick={() => iniciarEdicionPlan(plan)} style={{
+                      background: 'transparent', border: '1px solid rgba(255,255,255,0.3)',
+                      color: '#a9c9bb', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontWeight: 'bold',
+                    }}>
                       Editar
                     </button>
-                    <button type="button" onClick={() => eliminarPlan(plan)} style={{ color: '#ff8080' }}>
+                    <button type="button" onClick={() => eliminarPlan(plan)} style={{
+                      background: 'transparent', border: '1px solid rgba(255,128,128,0.4)',
+                      color: '#ff8080', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontWeight: 'bold',
+                    }}>
                       Eliminar
                     </button>
                   </div>
@@ -748,6 +784,48 @@ function LocalDetalle() {
         ))
       )}
     </div>
+
+    {confirmacion && (
+      <div
+        style={{
+          position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+        }}
+        onClick={() => setConfirmacion(null)}
+      >
+        <div
+          style={{
+            maxWidth: '420px', width: '100%', background: '#12283d',
+            border: '1px solid rgba(255,255,255,0.2)', borderRadius: '14px', padding: '24px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)', color: '#e2f3ff',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 style={{ margin: '0 0 10px 0' }}>¿Confirmar?</h3>
+          <p style={{ margin: '0 0 20px 0', color: '#a9c9bb' }}>{confirmacion.mensaje}</p>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setConfirmacion(null)}
+              style={{
+                padding: '9px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)',
+                color: '#a9c9bb', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => { const accion = confirmacion.accion; setConfirmacion(null); accion(); }}
+              style={{
+                padding: '9px 16px', background: '#ccff00', color: '#12283d',
+                border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
+              }}
+            >
+              Sí, continuar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </FondoPagina>
   );
 }

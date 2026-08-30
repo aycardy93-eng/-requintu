@@ -1,12 +1,32 @@
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  background-color: #12283d;
+}
+
 body {
   margin: 0;
+  background-color: #12283d;
+  color: #e2f3ff;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid #ccff00;
+  outline-offset: 2px;
 }

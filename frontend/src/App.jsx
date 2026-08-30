@@ -118,10 +118,22 @@ function App() {
         <Route
           path="*"
           element={
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#12283d' }}>
-              <h1 style={{ fontSize: '48px', margin: 0 }}>404</h1>
+            <div style={{
+              minHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '40px 20px',
+              color: '#e2f3ff',
+            }}>
+              <h1 style={{ fontSize: '52px', margin: 0, color: '#ccff00' }}>404</h1>
               <p>La página que buscas no existe.</p>
-              <Link to="/" style={{ color: '#38bdf8', fontWeight: 'bold' }}>Volver al inicio</Link>
+              <Link to="/" style={{
+                color: '#ccff00', fontWeight: 'bold', textDecoration: 'none', marginTop: '12px',
+                border: '1px solid #ccff00', padding: '8px 18px', borderRadius: '6px',
+              }}>Volver al inicio</Link>
             </div>
           }
         />

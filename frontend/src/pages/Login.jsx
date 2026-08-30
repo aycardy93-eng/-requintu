@@ -21,6 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [indexCarrusel, setIndexCarrusel] = useState(0);
   const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState('');
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -45,6 +46,7 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setEnviando(true);
     try {
       const response = await fetch(`${API_URL}/login`, {
@@ -56,7 +58,7 @@ export default function Login() {
       const data = await response.json();
 
       if (!response.ok) {
-       alert(data.error || 'Credenciales incorrectas');
+        setError(data.error || 'Credenciales incorrectas');
         return;
       }
 
@@ -64,7 +66,7 @@ export default function Login() {
       navigate('/mapa');
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
-      alert('No se pudo conectar con el servidor');
+      setError('No se pudo conectar con el servidor');
     } finally {
       setEnviando(false);
     }
@@ -147,10 +149,11 @@ export default function Login() {
       >
         <div
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            backgroundColor: 'rgba(18, 40, 61, 0.92)',
+            border: '1px solid rgba(255,255,255,0.15)',
             padding: '35px 30px',
             borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
             width: '100%',
             maxWidth: '360px',
           }}
@@ -158,7 +161,7 @@ export default function Login() {
           <h2
             style={{
               textAlign: 'center',
-              color: '#0284c7',
+              color: '#ccff00',
               marginTop: 0,
               marginBottom: '25px',
               fontSize: '20px',
@@ -167,9 +170,16 @@ export default function Login() {
             REQUINTU - Iniciar sesión
           </h2>
 
+          {error && (
+            <p style={{
+              color: '#ffb4b4', background: 'rgba(255,180,180,0.12)',
+              padding: '10px', borderRadius: '6px', fontSize: '14px', marginBottom: '15px',
+            }}>{error}</p>
+          )}
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#333' }}>
+              <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#a9c9bb' }}>
                 Correo:
               </label>
               <input
@@ -181,15 +191,16 @@ export default function Login() {
                   width: '100%',
                   padding: '10px',
                   borderRadius: '6px',
-                  border: '1px solid #ccc',
+                  border: '1px solid rgba(255,255,255,0.25)',
                   boxSizing: 'border-box',
-                  backgroundColor: '#e8f0fe',
+                  backgroundColor: 'rgba(255,255,255,0.95)',
+                  color: '#12283d',
                 }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#333' }}>
+              <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#a9c9bb' }}>
                 Contraseña:
               </label>
               <input
@@ -201,9 +212,10 @@ export default function Login() {
                   width: '100%',
                   padding: '10px',
                   borderRadius: '6px',
-                  border: '1px solid #ccc',
+                  border: '1px solid rgba(255,255,255,0.25)',
                   boxSizing: 'border-box',
-                  backgroundColor: '#e8f0fe',
+                  backgroundColor: 'rgba(255,255,255,0.95)',
+                  color: '#12283d',
                 }}
               />
             </div>
@@ -212,15 +224,16 @@ export default function Login() {
               type="submit"
               disabled={enviando}
               style={{
-                backgroundColor: '#38bdf8',
-                color: '#fff',
+                backgroundColor: '#ccff00',
+                color: '#12283d',
                 border: 'none',
                 padding: '12px',
                 borderRadius: '6px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 marginTop: '10px',
-                opacity: enviando ? 0.6 : 1
+                opacity: enviando ? 0.6 : 1,
+                transition: 'transform 0.12s ease, opacity 0.15s ease',
               }}
             >
               {enviando ? 'Ingresando...' : 'Ingresar'}
@@ -228,14 +241,14 @@ export default function Login() {
           </form>
 
           <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '13px' }}>
-            <Link to="/olvide-password" style={{ color: '#555', textDecoration: 'none' }}>
+            <Link to="/olvide-password" style={{ color: '#a9c9bb', textDecoration: 'none' }}>
               ¿Olvidaste tu contraseña?
             </Link>
           </p>
 
-          <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#555' }}>
+          <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#a9c9bb' }}>
             ¿No tienes cuenta?{' '}
-            <Link to="/register" style={{ color: '#0284c7', fontWeight: 'bold', textDecoration: 'none' }}>
+            <Link to="/register" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>
               Regístrate
             </Link>
           </p>
