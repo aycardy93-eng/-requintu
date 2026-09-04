@@ -516,7 +516,7 @@ function LocalDetalle() {
             {imagenEditFile && <p style={{ color: '#ccff00', fontSize: '12px' }}>{imagenEditFile.name}</p>}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" disabled={guardandoEdit} style={{ padding: '10px 18px', background: '#ccff00', color: '#0284c7', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}>
+            <button type="submit" disabled={guardandoEdit} style={{ padding: '10px 18px', background: '#ccff00', color: '#12283d', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}>
               {guardandoEdit ? 'Guardando...' : 'Guardar cambios'}
             </button>
             <button type="button" onClick={() => setEditando(false)} style={{ padding: '10px 18px', background: 'transparent', color: '#a9c9bb', border: '1px solid #a9c9bb', borderRadius: '6px', cursor: 'pointer' }}>
@@ -701,7 +701,7 @@ function LocalDetalle() {
             <button
               type="submit"
               disabled={enviandoPlan}
-              style={{ padding: '10px 20px', background: '#ccff00', color: '#0284c7', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ padding: '10px 20px', background: '#ccff00', color: '#12283d', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
             >
               {enviandoPlan ? 'Creando...' : 'Crear promoción/evento'}
             </button>
@@ -761,7 +761,7 @@ function LocalDetalle() {
             <button
               type="submit"
               disabled={enviando}
-              style={{ padding: '10px 20px', background: '#ccff00', color: '#0284c7', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ padding: '10px 20px', background: '#ccff00', color: '#12283d', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
             >
               {enviando ? 'Enviando...' : 'Enviar calificación'}
             </button>

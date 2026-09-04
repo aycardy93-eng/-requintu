@@ -64,34 +64,34 @@ const SECCIONES = [
 
 function PoliticaPrivacidad() {
   return (
-    <div style={{ background: '#f3f5f9', minHeight: '100vh', padding: '24px 16px 40px' }}>
+    <div style={{ background: 'linear-gradient(135deg, #0c1f30 0%, #12283d 55%, #1c3b56 100%)', minHeight: '100vh', padding: '24px 16px 40px' }}>
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 22 }}>
-          <h1 style={{ color: '#12283d', margin: 0, fontSize: '1.7em' }}>Política de privacidad de Requintu</h1>
-          <p style={{ color: '#0284c7', marginTop: 6 }}>Última actualización: 28 de agosto de 2026</p>
+          <h1 style={{ color: '#e2f3ff', margin: 0, fontSize: '1.7em' }}>Política de privacidad de Requintu</h1>
+          <p style={{ color: '#a9c9bb', marginTop: 6 }}>Última actualización: 28 de agosto de 2026</p>
         </div>
 
         {SECCIONES.map((s) => (
           <div
             key={s.titulo}
             style={{
-              background: '#fff',
+              background: 'rgba(18,40,61,0.55)',
+              border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: 10,
               padding: '18px 20px',
-              marginBottom: 14,
-              boxShadow: '0 1px 4px rgba(18,40,61,.10)'
+              marginBottom: 14
             }}
           >
-            <h2 style={{ color: '#0ea5e9', margin: '0 0 8px', fontSize: '1.1em' }}>{s.titulo}</h2>
-            {s.parrafos?.map((p) => <p key={p} style={{ margin: '6px 0', lineHeight: 1.55 }}>{p}</p>)}
+            <h2 style={{ color: '#ccff00', margin: '0 0 8px', fontSize: '1.1em' }}>{s.titulo}</h2>
+            {s.parrafos?.map((p) => <p key={p} style={{ margin: '6px 0', lineHeight: 1.55, color: '#e2f3ff' }}>{p}</p>)}
             {s.items?.map((i) => (
-              <li key={i} style={{ margin: '5px 0', lineHeight: 1.55 }}>{i}</li>
+              <li key={i} style={{ margin: '5px 0', lineHeight: 1.55, color: '#e2f3ff' }}>{i}</li>
             ))}
           </div>
         ))}
 
         <div style={{ textAlign: 'center', marginTop: 18 }}>
-          <Link to="/" style={{ color: '#0284c7', fontWeight: 'bold', textDecoration: 'none' }}>← Volver al inicio</Link>
+          <Link to="/" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver al inicio</Link>
         </div>
       </div>
     </div>

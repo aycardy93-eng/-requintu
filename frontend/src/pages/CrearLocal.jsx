@@ -288,7 +288,7 @@ function CrearLocal() {
               style={{
                 padding: '10px 20px',
                 background: '#ccff00',
-                color: '#0284c7',
+                color: '#12283d',
                 border: 'none',
                 borderRadius: '6px',
                 fontWeight: 'bold',

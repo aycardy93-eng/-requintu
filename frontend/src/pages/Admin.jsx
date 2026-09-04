@@ -34,7 +34,7 @@ const estilos = {
   },
   pestañaActiva: {
     backgroundColor: '#ccff00',
-    color: '#0284c7',
+    color: '#12283d',
   },
   pestañaInactiva: {
     backgroundColor: 'rgba(18,40,61,0.6)',
@@ -273,7 +273,7 @@ function Usuarios({ token }) {
                     <button
                       onClick={() => cambiarRol(u.id_usuario, u.rol)}
                       disabled={cambiando === u.id_usuario}
-                      style={{ ...estilos.boton, background: '#1d4ed8', color: 'white', marginRight: '6px' }}
+                      style={{ ...estilos.boton, background: '#2a6a94', color: 'white', marginRight: '6px' }}
                     >
                       {cambiando === u.id_usuario ? '...' : u.rol === 'admin' ? 'Quitar admin' : 'Hacer admin'}
                     </button>
