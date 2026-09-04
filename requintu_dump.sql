@@ -140,9 +140,28 @@ CREATE TABLE `usuarios` (
   `reset_token` varchar(10) DEFAULT NULL,
   `reset_token_expira` datetime DEFAULT NULL,
   `foto_perfil` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id_usuario`),
+PRIMARY KEY (`id_usuario`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+DROP TABLE IF EXISTS `denuncias`;
+
+CREATE TABLE IF NOT EXISTS `denuncias` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_publicacion` int NOT NULL,
+  `id_usuario` int NOT NULL,
+  `motivo` varchar(20) NOT NULL,
+  `detalle` varchar(300) DEFAULT NULL,
+  `estado` varchar(12) NOT NULL DEFAULT 'pendiente',
+  `creada_en` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_denuncia_publicacion_usuario` (`id_publicacion`,`id_usuario`),
+  KEY `idx_denuncias_estado` (`estado`),
+  CONSTRAINT `fk_denuncias_publicacion` FOREIGN KEY (`id_publicacion`)
+    REFERENCES `publicaciones` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_denuncias_usuario` FOREIGN KEY (`id_usuario`)
+    REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 SET FOREIGN_KEY_CHECKS = 1;

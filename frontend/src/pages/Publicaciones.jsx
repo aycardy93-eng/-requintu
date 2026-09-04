@@ -76,6 +76,13 @@ function Publicaciones() {
   const [guardandoEdit, setGuardandoEdit] = useState(false);
   const [errorEdit, setErrorEdit] = useState('');
 
+  // Denuncias de publicaciones (moderación de la comunidad)
+  const [denunciandoId, setDenunciandoId] = useState(null);
+  const [denunciaMotivo, setDenunciaMotivo] = useState('pornografia');
+  const [denunciaDetalle, setDenunciaDetalle] = useState('');
+  const [denunciaMensaje, setDenunciaMensaje] = useState('');
+  const [denunciaError, setDenunciaError] = useState('');
+
   const cargarPublicaciones = () => {
     setCargando(true);
     setError('');
@@ -255,6 +262,53 @@ function Publicaciones() {
     }
   };
 
+  const handleIniciarDenuncia = (pub) => {
+    setDenunciandoId(pub.id);
+    setDenunciaMotivo('pornografia');
+    setDenunciaDetalle('');
+    setDenunciaMensaje('');
+    setDenunciaError('');
+  };
+
+  const handleCancelarDenuncia = () => {
+    setDenunciandoId(null);
+    setDenunciaMotivo('pornografia');
+    setDenunciaDetalle('');
+    setDenunciaMensaje('');
+    setDenunciaError('');
+  };
+
+  const handleEnviarDenuncia = async (pub) => {
+    setDenunciaError('');
+    setDenunciaMensaje('');
+
+    try {
+      const res = await fetch(`${API_URL}/publicaciones/${pub.id}/denuncias`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          motivo: denunciaMotivo,
+          detalle: denunciaDetalle.trim() || null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al enviar la denuncia.');
+      }
+
+      setDenunciaMensaje(data.mensaje || 'Gracias por tu denuncia.');
+      setDenunciandoId(null);
+      setDenunciaDetalle('');
+    } catch (err) {
+      setDenunciaError(err.message);
+    }
+  };
+
   return (
     <FondoPagina>
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', padding: '30px 15px' }}>
@@ -375,6 +429,50 @@ function Publicaciones() {
                     >
                       Eliminar
                     </button>
+                  </div>
+                )}
+
+                {isAuthenticated && !esAutor && (
+                  <div style={{ marginTop: '10px' }}>
+                    {denunciaMensaje && (
+                      <p style={{ fontSize: '13px', color: '#4ade80', margin: '0 0 8px 0' }}>{denunciaMensaje}</p>
+                    )}
+
+                    {denunciandoId === pub.id ? (
+                      <div style={{ border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '10px' }}>
+                        <strong style={{ fontSize: '13px' }}>Denunciar publicación</strong>
+                        <select
+                          value={denunciaMotivo}
+                          onChange={(e) => setDenunciaMotivo(e.target.value)}
+                          style={{ ...estiloTexto, minHeight: 'unset', padding: '8px', margin: '8px 0' }}
+                        >
+                          <option value="pornografia">Contenido sexual</option>
+                          <option value="violencia">Violencia</option>
+                          <option value="spam">Spam</option>
+                          <option value="otro">Otro</option>
+                        </select>
+                        <textarea
+                          placeholder="Detalle (opcional)"
+                          value={denunciaDetalle}
+                          onChange={(e) => setDenunciaDetalle(e.target.value)}
+                          style={{ ...estiloTexto, minHeight: '50px' }}
+                        />
+                        {denunciaError && <p style={estiloError}>{denunciaError}</p>}
+                        <button
+                          onClick={() => handleEnviarDenuncia(pub)}
+                          style={{ ...estiloBotonPrimario, padding: '6px 14px', marginRight: '8px' }}
+                        >
+                          Enviar denuncia
+                        </button>
+                        <button onClick={handleCancelarDenuncia} style={estiloBotonSecundario}>
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => handleIniciarDenuncia(pub)} style={estiloBotonSecundario}>
+                        ⚑ Denunciar
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

@@ -8,6 +8,7 @@
     "test": "node --test test/api.test.mjs"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.1",
     "cookie-parser": "^1.4.7",
@@ -17,9 +18,12 @@
     "express-rate-limit": "^8.6.2",
     "express-validator": "^7.3.2",
     "helmet": "^8.3.0",
+    "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
     "mysql2": "^3.9.0",
-    "nodemailer": "^9.0.5"
+    "nodemailer": "^9.0.5",
+    "nsfwjs": "^4.3.0",
+    "pngjs": "^7.0.0"
   }
 }

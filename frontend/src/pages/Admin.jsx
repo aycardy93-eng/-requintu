@@ -575,6 +575,167 @@ function PublicacionesAdmin({ token }) {
   );
 }
 
+function DenunciasAdmin({ token }) {
+  const [denuncias, setDenuncias] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
+  const [actuando, setActuando] = useState(null);
+
+  const MOTIVOS = {
+    pornografia: 'Pornografía / contenido sexual',
+    violencia: 'Violencia',
+    spam: 'Spam',
+    otro: 'Otro',
+  };
+
+  const ESTADOS = {
+    pendiente: { label: 'Pendiente', color: '#fbbf24' },
+    resuelta: { label: 'Resuelta', color: '#4ade80' },
+    descartada: { label: 'Descartada', color: '#94a3b8' },
+  };
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/admin/denuncias`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar denuncias');
+      setDenuncias(data.denuncias || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  const resolver = (id, estado) => async () => {
+    setActuando(id);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/admin/denuncias/${id}/resolver`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estado }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al actualizar la denuncia');
+      cargar();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActuando(null);
+    }
+  };
+
+  const eliminarPublicacion = (d) => async () => {
+    if (!window.confirm('¿Eliminar la publicación denunciada? La denuncia quedará resuelta.')) return;
+    setActuando(d.id);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/admin/publicaciones/${d.publicacion_id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al eliminar publicación');
+      await fetch(`${API_URL}/admin/denuncias/${d.id}/resolver`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estado: 'resuelta' }),
+      });
+      cargar();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActuando(null);
+    }
+  };
+
+  return (
+    <div>
+      {error && <div style={estilos.aviso}>{error}</div>}
+      <div style={estilos.tarjeta}>
+        {cargando ? (
+          <p>Cargando...</p>
+        ) : denuncias.length === 0 ? (
+          <p>No hay denuncias. El clasificador automático se encarga de las imágenes sexuales.</p>
+        ) : (
+          <table style={{ ...estilos.tabla, minWidth: '720px' }}>
+            <thead>
+              <tr>
+                <th style={estilos.th}>Publicación</th>
+                <th style={estilos.th}>Motivo</th>
+                <th style={estilos.th}>Reportada por</th>
+                <th style={estilos.th}>Estado</th>
+                <th style={estilos.th}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {denuncias.map((d) => (
+                <tr key={d.id}>
+                  <td style={estilos.td}>
+                    <strong>{d.autor_publicacion}</strong>
+                    <div style={{ fontSize: '13px', color: '#a9c9bb' }}>{d.contenido}</div>
+                    {d.detalle && <div style={{ fontSize: '12px', color: '#ffb4b4' }}>Detalle: {d.detalle}</div>}
+                    <div style={{ fontSize: '11px', color: '#8aa6a0', marginTop: '4px' }}>
+                      {new Date(d.creada_en).toLocaleDateString('es-CO', {
+                        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </div>
+                  </td>
+                  <td style={estilos.td}>{MOTIVOS[d.motivo] || d.motivo}</td>
+                  <td style={estilos.td}>{d.autor_denuncia}</td>
+                  <td style={estilos.td}>
+                    <span style={{ color: ESTADOS[d.estado]?.color || '#fff', fontWeight: 'bold' }}>
+                      {ESTADOS[d.estado]?.label || d.estado}
+                    </span>
+                  </td>
+                  <td style={estilos.td}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={eliminarPublicacion(d)}
+                        disabled={actuando === d.id || d.estado !== 'pendiente'}
+                        style={{ ...estilos.boton, background: '#dc2626', color: 'white' }}
+                      >
+                        {actuando === d.id ? '...' : 'Eliminar publicación'}
+                      </button>
+                      {d.estado === 'pendiente' && (
+                        <>
+                          <button
+                            onClick={resolver(d.id, 'resuelta')}
+                            disabled={actuando === d.id}
+                            style={{ ...estilos.boton, background: '#2a6a94', color: 'white' }}
+                          >
+                            Aprobarla
+                          </button>
+                          <button
+                            onClick={resolver(d.id, 'descartada')}
+                            disabled={actuando === d.id}
+                            style={{ ...estilos.boton, background: '#4b5563', color: 'white' }}
+                          >
+                            Descartar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Admin() {
   const { token } = useAuth();
   const [pestaña, setPestaña] = useState('resumen');
@@ -596,6 +757,7 @@ function Admin() {
     { id: 'usuarios', label: 'Usuarios' },
     { id: 'locales', label: 'Locales' },
     { id: 'publicaciones', label: 'Publicaciones' },
+    { id: 'reportes', label: 'Reportes' },
   ];
 
   return (
@@ -626,6 +788,7 @@ function Admin() {
         {pestaña === 'usuarios' && <Usuarios token={token} />}
         {pestaña === 'locales' && <LocalesAdmin token={token} />}
         {pestaña === 'publicaciones' && <PublicacionesAdmin token={token} />}
+        {pestaña === 'reportes' && <DenunciasAdmin token={token} />}
       </div>
     </FondoPagina>
   );

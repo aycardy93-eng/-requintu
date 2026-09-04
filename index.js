@@ -17,6 +17,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import pool, { checkDatabaseHealth } from './db.js';
 import { encolarCorreo, iniciarColaCorreos } from './emailQueue.js';
 import { contieneGroserias } from './filtroProfano.js';
+import { moderarImagen } from './moderacionImagenes.js';
 
 import nodeDns from 'node:dns';
 nodeDns.setDefaultResultOrder('ipv4first');
@@ -219,6 +220,29 @@ async function emitirRefreshToken(idUsuario, res, expiraMs = EXPIRA_SESION_MS) {
     [idUsuario, hashRefreshToken(token), new Date(Date.now() + expiraMs)]
   );
   res.cookie('refresh_token', token, { ...COOKIE_OPCIONES, maxAge: expiraMs });
+}
+
+// -----------------------------------------------------------------------------
+// Denuncias de contenido (moderación de la comunidad)
+// -----------------------------------------------------------------------------
+export async function asegurarTablas() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS denuncias (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_publicacion INT NOT NULL,
+      id_usuario INT NOT NULL,
+      motivo VARCHAR(20) NOT NULL,
+      detalle VARCHAR(300) DEFAULT NULL,
+      estado VARCHAR(12) NOT NULL DEFAULT 'pendiente',
+      creada_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_denuncia_publicacion_usuario (id_publicacion, id_usuario),
+      KEY idx_denuncias_estado (estado),
+      CONSTRAINT fk_denuncias_publicacion FOREIGN KEY (id_publicacion)
+        REFERENCES publicaciones(id) ON DELETE CASCADE,
+      CONSTRAINT fk_denuncias_usuario FOREIGN KEY (id_usuario)
+        REFERENCES usuarios(id_usuario) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
 }
 
 // -----------------------------------------------------------------------------
@@ -553,6 +577,13 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
 
     if (!detectarTipoImagen(req.file.buffer)) {
       return res.status(400).json({ error: 'El archivo no es una imagen válida' });
+    }
+
+    // Moderación automática de contenido: bloquea imágenes violentas o sexuales
+    // detectadas por el clasificador NSFW local (sin enviar datos a terceros).
+    const moderacion = await moderarImagen(req.file.buffer);
+    if (!moderacion.aprobada) {
+      return res.status(400).json({ error: moderacion.motivo });
     }
 
     const cloudName = CLOUD_NAME;
@@ -1319,6 +1350,70 @@ app.delete('/api/admin/publicaciones/:id', authMiddleware, checkRole(['admin']),
 });
 
 // -----------------------------------------------------------------------------
+// Denuncias de publicaciones (moderación de la comunidad)
+// -----------------------------------------------------------------------------
+app.post('/api/publicaciones/:id/denuncias', authMiddleware, validar([
+  body('motivo').isIn(['pornografia', 'violencia', 'spam', 'otro']).withMessage('Motivo de denuncia inválido'),
+  body('detalle').optional({ values: 'falsy' }).trim().isLength({ max: 300 }).withMessage('El detalle no puede exceder 300 caracteres')
+]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { motivo, detalle } = req.body;
+
+    const [publicaciones] = await pool.query('SELECT id FROM publicaciones WHERE id = ?', [id]);
+    if (publicaciones.length === 0) {
+      return res.status(404).json({ error: 'Publicación no encontrada' });
+    }
+
+    await pool.query(
+      `INSERT INTO denuncias (id_publicacion, id_usuario, motivo, detalle)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE motivo = VALUES(motivo), detalle = VALUES(detalle)`,
+      [id, req.user.id, motivo, detalle || null]
+    );
+
+    res.status(201).json({ mensaje: 'Gracias por tu denuncia. El equipo la revisará.' });
+  } catch (err) {
+    console.error('Error al registrar denuncia:', err.message);
+    res.status(500).json({ error: 'Error al registrar la denuncia' });
+  }
+});
+
+app.get('/api/admin/denuncias', authMiddleware, checkRole(['admin']), async (req, res) => {
+  try {
+    const [denuncias] = await pool.query(
+      `SELECT d.id, d.motivo, d.detalle, d.estado, d.creada_en,
+              p.id AS publicacion_id, p.contenido, p.fecha_creacion,
+              ua.nombre AS autor_publicacion,
+              ud.nombre AS autor_denuncia
+       FROM denuncias d
+       JOIN publicaciones p ON p.id = d.id_publicacion
+       JOIN usuarios ua ON ua.id_usuario = p.usuario_id
+       JOIN usuarios ud ON ud.id_usuario = d.id_usuario
+       ORDER BY (d.estado = 'pendiente') DESC, d.creada_en DESC`
+    );
+    res.json({ denuncias });
+  } catch (err) {
+    console.error('Error al listar denuncias:', err.message);
+    res.status(500).json({ error: 'Error al listar denuncias' });
+  }
+});
+
+app.post('/api/admin/denuncias/:id/resolver', authMiddleware, checkRole(['admin']), validar([
+  body('estado').isIn(['resuelta', 'descartada']).withMessage('Estado inválido')
+]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+    await pool.query('UPDATE denuncias SET estado = ? WHERE id = ?', [estado, id]);
+    res.json({ mensaje: 'Denuncia actualizada' });
+  } catch (err) {
+    console.error('Error al resolver denuncia:', err.message);
+    res.status(500).json({ error: 'Error al resolver la denuncia' });
+  }
+});
+
+// -----------------------------------------------------------------------------
 // Manejo Global de Errores y Servidor
 // -----------------------------------------------------------------------------
 app.use((err, req, res, next) => {
@@ -1338,6 +1433,7 @@ app.use((err, req, res, next) => {
 async function arrancarServidor() {
   try {
     await checkDatabaseHealth();
+    await asegurarTablas();
     await iniciarColaCorreos();
     app.listen(PORT, () => {
       console.log(`Servidor de Requintu ejecutándose en el puerto ${PORT}`);

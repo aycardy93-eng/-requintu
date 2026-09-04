@@ -7,6 +7,7 @@ process.env.RATE_LIMIT_API_MAX = '1000';
 process.env.RATE_LIMIT_AUTH_MAX = '1000';
 
 const app = (await import('../index.js')).default;
+const { asegurarTablas } = await import('../index.js');
 
 let base = '';
 let server;
@@ -20,6 +21,7 @@ const registroUnico = () => {
 };
 
 before(async () => {
+  await asegurarTablas();
   await new Promise((resolve) => {
     server = app.listen(0, resolve);
   });
@@ -230,6 +232,69 @@ test('upload acepta un JPEG genuino', async () => {
   const rutaArchivo = new URL('../uploads/' + body.url.split('/').pop(), import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
   const { unlink } = await import('fs/promises');
   await unlink(rutaArchivo).catch(() => {});
+});
+
+test('flujo completo de denuncia: crear, listar como admin y resolver', async () => {
+  const autor = await registrarUsuario();
+  const denunciante = await registrarUsuario();
+  const admin = await registrarUsuario();
+  await pool.query('UPDATE usuarios SET rol = ? WHERE email = ?', ['admin', admin.email]);
+
+  const { token: tokenAutor } = await (await login(autor.email, autor.password)).json();
+  const { token: tokenDenunciante } = await (await login(denunciante.email, denunciante.password)).json();
+  const { token: tokenAdmin } = await (await login(admin.email, admin.password)).json();
+
+  const crear = await fetch(`${base}/api/publicaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenAutor}` },
+    body: JSON.stringify({ contenido: '[test] publicacion para denunciar' })
+  });
+  assert.equal(crear.status, 201);
+  const { id } = await crear.json();
+  publicacionesTest.push(id);
+
+  const denunciar = await fetch(`${base}/api/publicaciones/${id}/denuncias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenDenunciante}` },
+    body: JSON.stringify({ motivo: 'violencia', detalle: '[test] violencia en imagen' })
+  });
+  assert.equal(denunciar.status, 201);
+
+  const duplicada = await fetch(`${base}/api/publicaciones/${id}/denuncias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenDenunciante}` },
+    body: JSON.stringify({ motivo: 'spam' })
+  });
+  assert.equal(duplicada.status, 201);
+
+  const listarProhibido = await fetch(`${base}/api/admin/denuncias`, {
+    headers: { Authorization: `Bearer ${tokenDenunciante}` }
+  });
+  assert.equal(listarProhibido.status, 403);
+
+  const listar = await fetch(`${base}/api/admin/denuncias`, {
+    headers: { Authorization: `Bearer ${tokenAdmin}` }
+  });
+  assert.equal(listar.status, 200);
+  const { denuncias } = await listar.json();
+  const denuncia = denuncias.find((d) => d.publicacion_id === id);
+  assert.ok(denuncia, 'debe existir una denuncia para la publicacion');
+  assert.equal(denuncia.motivo, 'spam', 'la denuncia duplicada actualiza el motivo');
+  assert.equal(denuncia.estado, 'pendiente');
+
+  const resolver = await fetch(`${base}/api/admin/denuncias/${denuncia.id}/resolver`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenAdmin}` },
+    body: JSON.stringify({ estado: 'descartada' })
+  });
+  assert.equal(resolver.status, 200);
+
+  const resolverInvalido = await fetch(`${base}/api/admin/denuncias/${denuncia.id}/resolver`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenAdmin}` },
+    body: JSON.stringify({ estado: 'inventado' })
+  });
+  assert.equal(resolverInvalido.status, 400);
 });
 
 test('refresh sin cookie devuelve 401', async () => {
