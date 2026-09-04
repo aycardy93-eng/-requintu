@@ -206,13 +206,19 @@ const COOKIE_OPCIONES = {
 
 const hashRefreshToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
-async function emitirRefreshToken(idUsuario, res) {
+// Duración de la sesión (cookie httpOnly del refresh token):
+// - Sin "Recordarme": 24 horas.
+// - Con "Recordarme": 30 días.
+const EXPIRA_SESION_MS = 24 * 60 * 60 * 1000;
+const EXPIRA_RECORDAR_MS = 30 * 24 * 60 * 60 * 1000;
+
+async function emitirRefreshToken(idUsuario, res, expiraMs = EXPIRA_SESION_MS) {
   const token = crypto.randomBytes(64).toString('hex');
   await pool.query(
     'INSERT INTO refresh_tokens (id_usuario, token_hash, expira_en) VALUES (?, ?, ?)',
-    [idUsuario, hashRefreshToken(token), new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+    [idUsuario, hashRefreshToken(token), new Date(Date.now() + expiraMs)]
   );
-  res.cookie('refresh_token', token, { ...COOKIE_OPCIONES, maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie('refresh_token', token, { ...COOKIE_OPCIONES, maxAge: expiraMs });
 }
 
 // -----------------------------------------------------------------------------
@@ -267,7 +273,8 @@ app.post('/api/login', validar([
     const payload = { id: user.id_usuario, nombre: user.nombre, rol: user.rol };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 
-    await emitirRefreshToken(user.id_usuario, res);
+    const { recordar } = req.body;
+    await emitirRefreshToken(user.id_usuario, res, recordar ? EXPIRA_RECORDAR_MS : EXPIRA_SESION_MS);
 
     res.json({ token, user: { id: user.id_usuario, nombre: user.nombre, email: user.email, rol: user.rol } });
   } catch (err) {
@@ -286,7 +293,7 @@ app.post('/api/auth/refresh', async (req, res) => {
     await pool.query('DELETE FROM refresh_tokens WHERE expira_en < NOW()');
 
     const [filas] = await pool.query(
-      'SELECT id, id_usuario FROM refresh_tokens WHERE token_hash = ? AND revocado = 0 AND expira_en > NOW()',
+      'SELECT id, id_usuario, expira_en FROM refresh_tokens WHERE token_hash = ? AND revocado = 0 AND expira_en > NOW()',
       [hashRefreshToken(token)]
     );
     if (filas.length === 0) {
@@ -306,7 +313,11 @@ app.post('/api/auth/refresh', async (req, res) => {
     const usuario = usuarios[0];
 
     await pool.query('UPDATE refresh_tokens SET revocado = 1 WHERE id = ?', [filas[0].id]);
-    await emitirRefreshToken(usuario.id_usuario, res);
+    const vidaRestanteMs = Math.max(
+      new Date(filas[0].expira_en).getTime() - Date.now(),
+      EXPIRA_SESION_MS
+    );
+    await emitirRefreshToken(usuario.id_usuario, res, vidaRestanteMs);
 
     const nuevoToken = jwt.sign(
       { id: usuario.id_usuario, nombre: usuario.nombre, rol: usuario.rol },

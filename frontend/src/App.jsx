@@ -18,6 +18,7 @@ import Admin from './pages/Admin';
 import MapaColombia from './pages/MapaColombia';
 import PoliticaPrivacidad from './pages/PoliticaPrivacidad';
 import InstallBanner from './components/InstallBanner';
+import Footer from './components/Footer';
 import { Link } from 'react-router-dom';
 
 function App() {
@@ -138,6 +139,8 @@ function App() {
           }
         />
       </Routes>
+
+      <Footer />
     </>
   );
 }

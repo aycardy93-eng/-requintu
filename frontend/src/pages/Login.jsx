@@ -19,12 +19,19 @@ const imagenesCarrusel = [
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [recordar, setRecordar] = useState(false);
   const [indexCarrusel, setIndexCarrusel] = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  // Recuerda el correo en este dispositivo si el usuario marcó "Recuérdame".
+  useEffect(() => {
+    const emailRecordado = localStorage.getItem('requintu_email_recordado');
+    if (emailRecordado) setEmail(emailRecordado);
+  }, []);
 
   // Cambio automático del carrusel cada 4 segundos
   useEffect(() => {
@@ -52,7 +59,7 @@ export default function Login() {
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, recordar }),
       });
 
       const data = await response.json();
@@ -60,6 +67,12 @@ export default function Login() {
       if (!response.ok) {
         setError(data.error || 'Credenciales incorrectas');
         return;
+      }
+
+      if (recordar) {
+        localStorage.setItem('requintu_email_recordado', email);
+      } else {
+        localStorage.removeItem('requintu_email_recordado');
       }
 
       login(data.token);
@@ -219,6 +232,16 @@ export default function Login() {
                 }}
               />
             </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#a9c9bb', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={recordar}
+                onChange={(e) => setRecordar(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: '#ccff00', cursor: 'pointer' }}
+              />
+              Recuérdame en este dispositivo
+            </label>
 
             <button
               type="submit"
