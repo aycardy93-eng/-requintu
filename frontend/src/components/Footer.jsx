@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function Footer() {
+  const { t } = useTranslation();
   return (
     <footer style={{
       backgroundColor: '#0c1f30',
@@ -15,10 +17,10 @@ export default function Footer() {
         to="/politica-de-privacidad"
         style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}
       >
-        Política de privacidad
+        {t('footer.politica')}
       </Link>
       <div style={{ marginTop: '6px', opacity: 0.85 }}>
-        © {new Date().getFullYear()} Requintu — Turismo en Colombia
+        {t('footer.copyright', { año: new Date().getFullYear() })}
       </div>
     </footer>
   );

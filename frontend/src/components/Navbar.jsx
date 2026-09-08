@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import logoImg from '../assets/logo.jpeg';
 
 export default function Navbar() {
   const { isAuthenticated, usuario, logout } = useAuth();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
@@ -12,6 +14,13 @@ export default function Navbar() {
     logout();
     setMenuAbierto(false);
     navigate('/login');
+  };
+
+  const cambiarIdioma = (idioma) => {
+    try {
+      localStorage.setItem('requintu_idioma', idioma);
+    } catch { /* almacenamiento no disponible */ }
+    i18n.changeLanguage(idioma);
   };
 
   const nombreUsuario = usuario?.nombre || usuario?.email || 'Usuario';
@@ -53,7 +62,7 @@ export default function Navbar() {
           }} />
           <div>
             <div style={{ fontWeight: 'bold', fontSize: '16px', textTransform: 'uppercase' }}>REQUINTU</div>
-            <div style={{ fontSize: '10px', opacity: 0.85 }}>Turismo en Colombia</div>
+            <div style={{ fontSize: '10px', opacity: 0.85 }}>{t('nav.turismoColombia')}</div>
           </div>
         </Link>
 
@@ -83,27 +92,44 @@ export default function Navbar() {
         }}
           className="nav-links-desktop"
         >
-          <Link to="/locales" style={navLinkStyle}>Locales</Link>
-          <Link to="/publicaciones" style={navLinkStyle}>Publicaciones</Link>
-          {isAuthenticated && <Link to="/mapa" style={navLinkStyle}>Mapa</Link>}
-          {usuario?.rol === 'admin' && <Link to="/admin" style={navLinkStyle}>Admin</Link>}
+          <Link to="/locales" style={navLinkStyle}>{t('nav.locales')}</Link>
+          <Link to="/publicaciones" style={navLinkStyle}>{t('nav.publicaciones')}</Link>
+          {isAuthenticated && <Link to="/mapa" style={navLinkStyle}>{t('nav.mapa')}</Link>}
+          {usuario?.rol === 'admin' && <Link to="/admin" style={navLinkStyle}>{t('nav.admin')}</Link>}
+          <button
+            onClick={() => cambiarIdioma(i18n.language === 'en' ? 'es' : 'en')}
+            aria-label="Idioma"
+            title={t('nav.cambiarIdioma')}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.35)',
+              color: '#ccff00',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              padding: '6px 10px',
+            }}
+          >
+            {i18n.language === 'en' ? 'ES' : 'EN'}
+          </button>
           {isAuthenticated ? (
             <>
               <span style={{ color: '#e2f3ff', fontWeight: 'bold', fontSize: '14px' }}>
-                Hola, {nombreUsuario}
+                {t('nav.hola', { nombre: nombreUsuario })}
               </span>
               <button onClick={handleLogout} style={{
                 backgroundColor: '#ccff00', color: '#12283d', border: 'none',
                 padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
                 transition: 'transform 0.12s ease, background-color 0.15s ease',
-              }}>Cerrar sesión</button>
+              }}>{t('nav.cerrarSesion')}</button>
             </>
           ) : (
             <Link to="/login" style={{
               backgroundColor: '#ccff00', color: '#12283d', padding: '8px 16px',
               borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold',
               transition: 'transform 0.12s ease, background-color 0.15s ease',
-            }}>Iniciar / Registrarse</Link>
+            }}>{t('nav.iniciarRegistrarse')}</Link>
           )}
         </div>
       </div>
@@ -116,31 +142,50 @@ export default function Navbar() {
           gap: '4px',
           borderTop: '1px solid rgba(255,255,255,0.2)',
         }} className="nav-menu-mobile">
-          <Link to="/locales" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>Locales</Link>
-          <Link to="/publicaciones" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>Publicaciones</Link>
+          <Link to="/locales" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>{t('nav.locales')}</Link>
+          <Link to="/publicaciones" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>{t('nav.publicaciones')}</Link>
           {isAuthenticated && (
-            <Link to="/mapa" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>Mapa</Link>
+            <Link to="/mapa" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>{t('nav.mapa')}</Link>
           )}
           {usuario?.rol === 'admin' && (
-            <Link to="/admin" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>Admin</Link>
+            <Link to="/admin" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>{t('nav.admin')}</Link>
           )}
+          <button
+            onClick={() => cambiarIdioma(i18n.language === 'en' ? 'es' : 'en')}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.35)',
+              color: '#ccff00',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              padding: '10px 16px',
+              marginTop: '4px',
+              textAlign: 'center',
+              display: 'block',
+              width: '100%',
+            }}
+          >
+            {i18n.language === 'en' ? 'ES' : 'EN'}
+          </button>
           {isAuthenticated ? (
             <>
               <span style={{ color: '#e2f3ff', fontWeight: 'bold', fontSize: '14px', padding: '8px 0' }}>
-                Hola, {nombreUsuario}
+                {t('nav.hola', { nombre: nombreUsuario })}
               </span>
               <button onClick={handleLogout} style={{
                 backgroundColor: '#ccff00', color: '#12283d', border: 'none',
                 padding: '10px 16px', borderRadius: '6px', cursor: 'pointer',
                 fontWeight: 'bold', marginTop: '4px', width: '100%',
-              }}>Cerrar sesión</button>
+              }}>{t('nav.cerrarSesion')}</button>
             </>
           ) : (
             <Link to="/login" onClick={() => setMenuAbierto(false)} style={{
               backgroundColor: '#ccff00', color: '#12283d', padding: '10px 16px',
               borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold',
               textAlign: 'center', marginTop: '4px', display: 'block',
-            }}>Iniciar / Registrarse</Link>
+            }}>{t('nav.iniciarRegistrarse')}</Link>
           )}
         </div>
       )}

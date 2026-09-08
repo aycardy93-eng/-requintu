@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import fondoRegisterImg from '../assets/registro-fondo.jpg';
 import { API_URL } from '../config';
 
 export default function Register() {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +34,7 @@ export default function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'No se pudo completar el registro');
+        setError(data.error || t('register.errorRegistro'));
         return;
       }
 
@@ -40,7 +42,7 @@ export default function Register() {
       setTimeout(() => navigate('/login'), 1500);
     } catch (error) {
       console.error('Error al registrarse:', error);
-      setError('No se pudo conectar con el servidor');
+      setError(t('register.errorServidor'));
     } finally {
       setEnviando(false);
     }
@@ -80,7 +82,7 @@ export default function Register() {
             textTransform: 'uppercase',
           }}
         >
-          REQUINTU - Crear cuenta
+          REQUINTU - {t('register.titulo')}
         </h2>
 
         {error && (
@@ -93,13 +95,13 @@ export default function Register() {
           <p style={{
             color: '#a9f0b4', background: 'rgba(169,240,180,0.12)',
             padding: '10px', borderRadius: '6px', fontSize: '14px', marginBottom: '15px',
-          }}>{exito} Te llevaremos a iniciar sesión...</p>
+          }}>{exito} {t('register.redirigiendo')}</p>
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#a9c9bb' }}>
-              Nombre:
+              {t('register.nombre')}:
             </label>
             <input
               type="text"
@@ -120,7 +122,7 @@ export default function Register() {
 
           <div>
             <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#a9c9bb' }}>
-              Correo:
+              {t('register.correo')}:
             </label>
             <input
               type="email"
@@ -141,7 +143,7 @@ export default function Register() {
 
           <div>
             <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#a9c9bb' }}>
-              Contraseña:
+              {t('register.contrasena')}:
             </label>
             <input
               type="password"
@@ -162,7 +164,7 @@ export default function Register() {
 
           <div>
             <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#a9c9bb' }}>
-              Tipo de cuenta:
+              {t('register.tipoCuenta')}:
             </label>
             <select
               value={role}
@@ -177,8 +179,8 @@ export default function Register() {
                 color: '#12283d',
               }}
             >
-              <option value="Viajero">Viajero</option>
-              <option value="Propietario">Propietario de local</option>
+              <option value="Viajero">{t('register.viajero')}</option>
+              <option value="Propietario">{t('register.propietario')}</option>
             </select>
           </div>
 
@@ -199,14 +201,14 @@ export default function Register() {
               transition: 'transform 0.12s ease, opacity 0.15s ease',
             }}
           >
-            {enviando ? 'Registrando...' : 'Registrarme'}
+            {enviando ? t('register.registrando') : t('register.registrarme')}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: '#a9c9bb' }}>
-          ¿Ya tienes cuenta?{' '}
+          {t('register.yaTienesCuenta')}{' '}
           <Link to="/login" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>
-            Inicia sesión
+            {t('register.iniciaSesion')}
           </Link>
         </p>
       </div>

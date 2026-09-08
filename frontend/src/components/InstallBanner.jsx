@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
 export default function InstallBanner() {
+  const { t } = useTranslation();
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showBanner, setShowBanner] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
@@ -63,23 +65,23 @@ export default function InstallBanner() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
           <div>
-            <strong style={{ fontSize: 15 }}>Instalar Requintu en iPhone</strong>
+            <strong style={{ fontSize: 15 }}>{t('instalar.tituloIphone')}</strong>
             <ol style={{ margin: '8px 0', paddingLeft: '18px', fontSize: 13, lineHeight: 1.8 }}>
-              <li>Toca el botón <strong>Compartir</strong> abajo</li>
-              <li>Desplaza hacia abajo y toca <strong>"Agregar a pantalla de inicio"</strong></li>
-              <li>Toca <strong>"Agregar"</strong> arriba a la derecha</li>
+              <li>{t('instalar.paso1')} <strong>{t('instalar.compartir')}</strong></li>
+              <li>{t('instalar.paso2')} <strong>{t('instalar.agregarPantallaInicio')}</strong></li>
+              <li>{t('instalar.paso3')} <strong>{t('instalar.agregar')}</strong></li>
             </ol>
           </div>
           <button onClick={() => { setShowIOSHelp(false); handleDismiss(); }} style={{
             background: 'transparent', border: '1px solid rgba(255,255,255,0.4)',
             color: 'white', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, flexShrink: 0, marginLeft: 8
-          }}>Cerrar</button>
+          }}>{t('instalar.cerrar')}</button>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button onClick={() => { setShowIOSHelp(false); handleDismiss(); }} style={{
             flex: 1, background: 'transparent', border: '1px solid rgba(255,255,255,0.4)',
             color: 'white', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12
-          }}>Ahora no</button>
+          }}>{t('instalar.ahoraNo')}</button>
         </div>
       </div>
     );
@@ -97,8 +99,8 @@ export default function InstallBanner() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
         <img src="/icon-192.png" alt="" style={{ width: 36, height: 36, borderRadius: 8 }} />
         <div style={{ fontSize: 13, lineHeight: 1.3 }}>
-          <strong>Instalar Requintu</strong>
-          <div style={{ opacity: 0.85, fontSize: 11 }}>Accede rápido desde tu pantalla de inicio</div>
+          <strong>{t('instalar.titulo')}</strong>
+          <div style={{ opacity: 0.85, fontSize: 11 }}>{t('instalar.subtitulo')}</div>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -107,17 +109,17 @@ export default function InstallBanner() {
         }} style={{
           background: 'transparent', border: '1px solid rgba(255,255,255,0.4)',
           color: 'white', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12
-        }}>{isIOS ? 'Cómo instalar' : 'Ahora no'}</button>
+        }}>{isIOS ? t('instalar.comoInstalar') : t('instalar.ahoraNo')}</button>
         {isIOS ? (
           <button onClick={() => setShowIOSHelp(true)} style={{
             background: 'white', color: '#12283d', border: 'none',
             padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12
-          }}>Ver pasos</button>
+          }}>{t('instalar.verPasos')}</button>
         ) : (
           <button onClick={handleInstall} style={{
             background: '#ccff00', color: '#12283d', border: 'none',
             padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12
-          }}>Instalar</button>
+          }}>{t('instalar.instalar')}</button>
         )}
       </div>
     </div>

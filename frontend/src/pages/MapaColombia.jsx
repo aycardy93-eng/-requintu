@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import mapaSvgRaw from '../assets/co-departamentos.svg?raw';
 import fondoMar from '../assets/fondo-mapa.jpg';
 import { API_URL } from '../config';
@@ -44,6 +45,7 @@ const ID_A_DEPARTAMENTO = {
 
 function MapaColombia() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const contenedorMapaRef = useRef(null);
   const zoomRef = useRef(1);
   const panRef = useRef({ x: 0, y: 0 });
@@ -66,10 +68,10 @@ function MapaColombia() {
         setCargando(false);
       })
       .catch(() => {
-        setError('No se pudo cargar el mapa. Verifica que el servidor esté corriendo.');
+        setError(t('mapa.errorCargar'));
         setCargando(false);
       });
-  }, []);
+  }, [t]);
 
   const abrirDepartamento = (nombreDepartamento) => {
     setDepartamentoSeleccionado(nombreDepartamento);
@@ -195,7 +197,7 @@ function MapaColombia() {
   };
 
   if (cargando) {
-    return <div style={estiloPagina}><p>Cargando mapa...</p></div>;
+    return <div style={estiloPagina}><p>{t('mapa.cargando')}</p></div>;
   }
 
   if (error) {
@@ -248,9 +250,9 @@ function MapaColombia() {
       `}</style>
 
       <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center', marginBottom: '25px' }}>
-        <h1 style={{ margin: '0 0 8px 0' }}>Explora Colombia por departamento</h1>
+        <h1 style={{ margin: '0 0 8px 0' }}>{t('mapa.titulo')}</h1>
         <p style={{ color: '#a9c9bb', margin: 0 }}>
-          Toca un departamento, elige el municipio y descubre los locales recomendados por la gente.
+          {t('mapa.subtitulo')}
         </p>
       </div>
 
@@ -307,13 +309,13 @@ function MapaColombia() {
                   padding: 0,
                 }}
               >
-                ← Volver al mapa
+                ← {t('mapa.volver')}
               </button>
 
               <h2 style={{ margin: '0 0 15px 0' }}>{departamentoSeleccionado}</h2>
 
               {cargandoMunicipios ? (
-                <p>Cargando municipios...</p>
+                <p>{t('mapa.cargandoMunicipios')}</p>
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                   {municipios.map((m) => (
@@ -361,7 +363,7 @@ function MapaColombia() {
                 e.stopPropagation();
                 ajustarZoom(1.6);
               }}
-              aria-label="Ampliar"
+              aria-label={t('mapa.ampliar')}
               style={estiloBotonZoom}
             >
               +
@@ -373,7 +375,7 @@ function MapaColombia() {
                 e.stopPropagation();
                 ajustarZoom(0.625);
               }}
-              aria-label="Reducir"
+              aria-label={t('mapa.reducir')}
               style={estiloBotonZoom}
             >
               −
@@ -387,7 +389,7 @@ function MapaColombia() {
               textAlign: 'center',
             }}
           >
-            Desliza para mover · usa + / − o doble toque para ampliar · toca un departamento para ver sus municipios
+            {t('mapa.consejos')}
           </p>
         </div>
       </div>

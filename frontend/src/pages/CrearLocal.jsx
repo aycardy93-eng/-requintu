@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
 import { API_URL } from '../config';
 
 function CrearLocal() {
   const { token } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [categorias, setCategorias] = useState([]);
@@ -70,7 +72,7 @@ function CrearLocal() {
     setExito('');
 
     if (!nombre || !descripcion) {
-      setError('Nombre y descripción son obligatorios.');
+      setError(t('crearLocal.camposObligatorios'));
       return;
     }
 
@@ -88,7 +90,7 @@ function CrearLocal() {
           body: formData,
         });
         const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) throw new Error(uploadData.error || 'Error al subir la imagen.');
+        if (!uploadRes.ok) throw new Error(uploadData.error || t('crearLocal.errorSubirImagen'));
         imagen_url = uploadData.url;
       }
 
@@ -113,10 +115,10 @@ function CrearLocal() {
       const localData = await localRes.json();
 
       if (!localRes.ok) {
-        throw new Error(localData.error || 'Error al crear el local.');
+        throw new Error(localData.error || t('crearLocal.errorCrear'));
       }
 
-      setExito('¡Local creado con éxito!');
+      setExito(t('crearLocal.exito'));
       setTimeout(() => navigate('/locales'), 1200);
     } catch (err) {
       setError(err.message);
@@ -145,7 +147,7 @@ function CrearLocal() {
             padding: '30px',
           }}
         >
-          <h1 style={{ marginTop: 0 }}>Crear nuevo local</h1>
+          <h1 style={{ marginTop: 0 }}>{t('crearLocal.titulo')}</h1>
 
           {error && (
             <p style={{ color: '#ffb4b4', background: 'rgba(255, 180, 180, 0.12)', padding: '8px', borderRadius: '6px' }}>{error}</p>
@@ -156,7 +158,7 @@ function CrearLocal() {
 
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '15px' }}>
-              <label>Nombre:</label>
+              <label>{t('crearLocal.nombre')}:</label>
               <input
                 type="text"
                 value={nombre}
@@ -166,7 +168,7 @@ function CrearLocal() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Descripción:</label>
+              <label>{t('crearLocal.descripcion')}:</label>
               <textarea
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
@@ -175,7 +177,7 @@ function CrearLocal() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Dirección:</label>
+              <label>{t('crearLocal.direccion')}:</label>
               <input
                 type="text"
                 value={direccion}
@@ -185,7 +187,7 @@ function CrearLocal() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Teléfono:</label>
+              <label>{t('crearLocal.telefono')}:</label>
               <input
                 type="text"
                 value={telefono}
@@ -195,13 +197,13 @@ function CrearLocal() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Categoría:</label>
+              <label>{t('crearLocal.categoria')}:</label>
               <select
                 value={idCategoria}
                 onChange={(e) => setIdCategoria(e.target.value)}
                 style={estiloInput}
               >
-                <option value="">-- Selecciona --</option>
+                <option value="">{t('crearLocal.selecciona')}</option>
                 {categorias.map((cat) => (
                   <option key={cat.id_categoria} value={cat.id_categoria}>
                     {cat.nombre}
@@ -211,7 +213,7 @@ function CrearLocal() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Departamento:</label>
+              <label>{t('crearLocal.departamento')}:</label>
               <select
                 value={departamentoSeleccionado}
                 onChange={(e) => {
@@ -220,7 +222,7 @@ function CrearLocal() {
                 }}
                 style={estiloInput}
               >
-                <option value="">-- Selecciona --</option>
+                <option value="">{t('crearLocal.selecciona')}</option>
                 {departamentos.map((dep) => (
                   <option key={dep} value={dep}>
                     {dep}
@@ -230,13 +232,13 @@ function CrearLocal() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Municipio:</label>
+              <label>{t('crearLocal.municipio')}:</label>
               <select
                 value={idMunicipio}
                 onChange={(e) => setIdMunicipio(e.target.value)}
                 style={estiloInput}
               >
-                <option value="">-- Selecciona --</option>
+                <option value="">{t('crearLocal.selecciona')}</option>
                 {municipiosFiltrados.map((mun) => (
                   <option key={mun.id_municipio} value={mun.id_municipio}>
                     {mun.nombre}
@@ -247,9 +249,9 @@ function CrearLocal() {
 
             {consultaMapa && (
               <div style={{ marginBottom: '15px' }}>
-                <label>Vista previa de la ubicación:</label>
+                <label>{t('crearLocal.vistaPrevia')}:</label>
                 <iframe
-                  title="Vista previa del mapa"
+                  title={t('crearLocal.tituloMapa')}
                   src={`https://maps.google.com/maps?q=${encodeURIComponent(consultaMapa)}&z=15&output=embed`}
                   style={{
                     width: '100%',
@@ -263,15 +265,15 @@ function CrearLocal() {
                   referrerPolicy="no-referrer-when-downgrade"
                 />
                 <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#a9c9bb' }}>
-                  Así se verá el mapa en la página de tu local. Sé preciso en la dirección para un mejor resultado.
+                  {t('crearLocal.notaMapa')}
                 </p>
               </div>
             )}
 
             <div style={{ marginBottom: '15px' }}>
-              <label>Imagen del local:</label>
+              <label>{t('crearLocal.imagenLocal')}:</label>
               <p style={{ margin: '2px 0 6px 0', fontSize: '12px', color: '#a9c9bb' }}>
-                Selecciona una foto desde tu celular o computador
+                {t('crearLocal.notaImagen')}
               </p>
               <input
                 type="file"
@@ -295,7 +297,7 @@ function CrearLocal() {
                 cursor: 'pointer',
               }}
             >
-              {cargando ? 'Creando...' : 'Crear local'}
+              {cargando ? t('crearLocal.creando') : t('crearLocal.crearLocal')}
             </button>
           </form>
         </div>

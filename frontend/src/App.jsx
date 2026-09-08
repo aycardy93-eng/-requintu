@@ -1,6 +1,7 @@
 
 import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -22,6 +23,7 @@ import Footer from './components/Footer';
 import { Link } from 'react-router-dom';
 
 function App() {
+  const { t } = useTranslation();
   useEffect(() => {
     let activo = true;
 
@@ -130,11 +132,11 @@ function App() {
               color: '#e2f3ff',
             }}>
               <h1 style={{ fontSize: '52px', margin: 0, color: '#ccff00' }}>404</h1>
-              <p>La página que buscas no existe.</p>
+              <p>{t('app.noEncontrada')}</p>
               <Link to="/" style={{
                 color: '#ccff00', fontWeight: 'bold', textDecoration: 'none', marginTop: '12px',
                 border: '1px solid #ccff00', padding: '8px 18px', borderRadius: '6px',
-              }}>Volver al inicio</Link>
+              }}>{t('app.volverInicio')}</Link>
             </div>
           }
         />

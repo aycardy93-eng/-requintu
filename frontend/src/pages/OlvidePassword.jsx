@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import FondoPagina from '../components/FondoPagina';
 import { API_URL } from '../config';
 
 export default function OlvidePassword() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState('');
@@ -24,7 +26,7 @@ export default function OlvidePassword() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al enviar la solicitud.');
+        throw new Error(data.error || t('olvide.errorSolicitud'));
       }
 
       setMensaje(data.mensaje);
@@ -46,9 +48,9 @@ export default function OlvidePassword() {
             padding: '30px',
           }}
         >
-          <h1 style={{ marginTop: 0 }}>Recuperar contraseña</h1>
+          <h1 style={{ marginTop: 0 }}>{t('olvide.titulo')}</h1>
           <p style={{ color: '#a9c9bb' }}>
-            Escribe el correo con el que te registraste y te enviaremos un enlace para crear una nueva contraseña.
+            {t('olvide.descripcion')}
           </p>
 
           {error && (
@@ -61,13 +63,13 @@ export default function OlvidePassword() {
           {!mensaje && (
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '15px' }}>
-                <label>Correo electrónico:</label>
+                <label>{t('olvide.correo')}:</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="tucorreo@gmail.com"
+                  placeholder={t('olvide.placeholderCorreo')}
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -93,13 +95,13 @@ export default function OlvidePassword() {
                   cursor: 'pointer',
                 }}
               >
-                {enviando ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                {enviando ? t('olvide.enviando') : t('olvide.enviarEnlace')}
               </button>
             </form>
           )}
 
           <p style={{ marginTop: '15px' }}>
-            <Link to="/login" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver a iniciar sesión</Link>
+            <Link to="/login" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← {t('olvide.volverLogin')}</Link>
           </p>
         </div>
       </div>

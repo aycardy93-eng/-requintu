@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
+import { localeFecha } from '../i18n';
 import BACKEND_ORIGIN, { API_URL } from '../config';
 
 // Las imágenes subidas se guardan como ruta relativa (/uploads/archivo.jpg).
@@ -55,6 +57,7 @@ const estiloBotonSecundario = {
 
 function Publicaciones() {
   const { token, isAuthenticated, usuario: usuarioActual } = useAuth();
+  const { t } = useTranslation();
 
   const [publicaciones, setPublicaciones] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -94,7 +97,7 @@ function Publicaciones() {
         setCargando(false);
       })
       .catch(() => {
-        setError('No se pudo conectar con el servidor.');
+        setError(t('muro.errorServidor'));
         setCargando(false);
       });
   };
@@ -141,7 +144,7 @@ function Publicaciones() {
     const uploadData = await uploadRes.json();
 
     if (!uploadRes.ok) {
-      throw new Error(uploadData.error || 'Error al subir la imagen.');
+      throw new Error(uploadData.error || t('muro.errorSubirImagen'));
     }
 
     return uploadData.url;
@@ -152,7 +155,7 @@ function Publicaciones() {
     setErrorNuevo('');
 
     if (!contenidoNuevo.trim()) {
-      setErrorNuevo('El contenido es obligatorio.');
+      setErrorNuevo(t('muro.contenidoObligatorio'));
       return;
     }
 
@@ -173,7 +176,7 @@ function Publicaciones() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al crear la publicación.');
+        throw new Error(data.error || t('muro.errorCrear'));
       }
 
       setContenidoNuevo('');
@@ -204,7 +207,7 @@ function Publicaciones() {
     setErrorEdit('');
 
     if (!contenidoEdit.trim()) {
-      setErrorEdit('El contenido es obligatorio.');
+      setErrorEdit(t('muro.contenidoObligatorio'));
       return;
     }
 
@@ -228,7 +231,7 @@ function Publicaciones() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al actualizar la publicación.');
+        throw new Error(data.error || t('muro.errorActualizar'));
       }
 
       handleCancelarEdicion();
@@ -241,7 +244,7 @@ function Publicaciones() {
   };
 
   const handleEliminar = async (id) => {
-    const confirmar = window.confirm('¿Seguro que quieres eliminar esta publicación? Esta acción no se puede deshacer.');
+    const confirmar = window.confirm(t('muro.confirmarEliminar'));
     if (!confirmar) return;
 
     try {
@@ -253,7 +256,7 @@ function Publicaciones() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al eliminar la publicación.');
+        throw new Error(data.error || t('muro.errorEliminar'));
       }
 
       cargarPublicaciones();
@@ -298,10 +301,10 @@ function Publicaciones() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al enviar la denuncia.');
+        throw new Error(data.error || t('muro.errorDenuncia'));
       }
 
-      setDenunciaMensaje(data.mensaje || 'Gracias por tu denuncia.');
+      setDenunciaMensaje(data.mensaje || t('muro.graciasDenuncia'));
       setDenunciandoId(null);
       setDenunciaDetalle('');
     } catch (err) {
@@ -313,8 +316,8 @@ function Publicaciones() {
     <FondoPagina>
     <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', padding: '30px 15px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Publicaciones</h1>
-        <Link to="/" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver</Link>
+        <h1>{t('muro.titulo')}</h1>
+        <Link to="/" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← {t('common.volver')}</Link>
       </div>
 
       {/* Formulario de nueva publicación */}
@@ -325,7 +328,7 @@ function Publicaciones() {
           )}
 
           <textarea
-            placeholder="¿Qué quieres compartir?"
+            placeholder={t('muro.placeholder')}
             value={contenidoNuevo}
             onChange={(e) => setContenidoNuevo(e.target.value)}
             style={estiloTexto}
@@ -339,19 +342,19 @@ function Publicaciones() {
           />
 
           <button type="submit" disabled={enviando} style={{ ...estiloBotonPrimario, opacity: enviando ? 0.6 : 1 }}>
-            {enviando ? 'Publicando...' : 'Publicar'}
+            {enviando ? t('muro.publicando') : t('muro.publicar')}
           </button>
         </form>
       ) : (
         <p style={{ marginBottom: '25px' }}>
-          <Link to="/login" style={{ color: '#ccff00', fontWeight: 'bold' }}>Inicia sesión</Link> para crear una publicación.
+          <Link to="/login" style={{ color: '#ccff00', fontWeight: 'bold' }}>{t('muro.iniciaSesion')}</Link> {t('muro.paraPublicar')}.
         </p>
       )}
 
       {/* Estado de carga / error */}
-      {cargando && <p>Cargando publicaciones...</p>}
+      {cargando && <p>{t('muro.cargando')}</p>}
       {error && <p style={{ color: '#ffb4b4' }}>{error}</p>}
-      {!cargando && !error && publicaciones.length === 0 && <p>Aún no hay publicaciones.</p>}
+      {!cargando && !error && publicaciones.length === 0 && <p>{t('muro.sinPublicaciones')}</p>}
 
       {/* Lista de publicaciones */}
       {publicaciones.map((pub) => {
@@ -363,7 +366,7 @@ function Publicaciones() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <strong>{pub.autor}</strong>
               <span style={{ fontSize: '12px', color: '#a9c9bb' }}>
-                {new Date(pub.fecha_creacion).toLocaleString('es-CO')}
+                {new Date(pub.fecha_creacion).toLocaleString(localeFecha())}
               </span>
             </div>
 
@@ -387,7 +390,7 @@ function Publicaciones() {
                   />
                 )}
 
-                <label style={{ fontSize: '13px', color: '#a9c9bb' }}>Cambiar imagen (opcional):</label>
+                <label style={{ fontSize: '13px', color: '#a9c9bb' }}>{t('muro.cambiarImagen')}:</label>
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp"
@@ -400,10 +403,10 @@ function Publicaciones() {
                   disabled={guardandoEdit}
                   style={{ ...estiloBotonPrimario, padding: '6px 14px', marginRight: '8px', opacity: guardandoEdit ? 0.6 : 1 }}
                 >
-                  {guardandoEdit ? 'Guardando...' : 'Guardar'}
+                  {guardandoEdit ? t('common.guardando') : t('common.guardar')}
                 </button>
                 <button onClick={handleCancelarEdicion} style={estiloBotonSecundario}>
-                  Cancelar
+                  {t('common.cancelar')}
                 </button>
               </div>
             ) : (
@@ -421,13 +424,13 @@ function Publicaciones() {
                 {esAutor && (
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={() => handleIniciarEdicion(pub)} style={estiloBotonSecundario}>
-                      Editar
+                      {t('common.editar')}
                     </button>
                     <button
                       onClick={() => handleEliminar(pub.id)}
                       style={{ ...estiloBotonSecundario, color: '#ff8080' }}
                     >
-                      Eliminar
+                      {t('common.eliminar')}
                     </button>
                   </div>
                 )}
@@ -440,19 +443,19 @@ function Publicaciones() {
 
                     {denunciandoId === pub.id ? (
                       <div style={{ border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '10px' }}>
-                        <strong style={{ fontSize: '13px' }}>Denunciar publicación</strong>
+                        <strong style={{ fontSize: '13px' }}>{t('muro.denunciarTitulo')}</strong>
                         <select
                           value={denunciaMotivo}
                           onChange={(e) => setDenunciaMotivo(e.target.value)}
                           style={{ ...estiloTexto, minHeight: 'unset', padding: '8px', margin: '8px 0' }}
                         >
-                          <option value="pornografia">Contenido sexual</option>
-                          <option value="violencia">Violencia</option>
-                          <option value="spam">Spam</option>
-                          <option value="otro">Otro</option>
+                          <option value="pornografia">{t('muro.motivoSexual')}</option>
+                          <option value="violencia">{t('muro.motivoViolencia')}</option>
+                          <option value="spam">{t('muro.motivoSpam')}</option>
+                          <option value="otro">{t('muro.motivoOtro')}</option>
                         </select>
                         <textarea
-                          placeholder="Detalle (opcional)"
+                          placeholder={t('muro.detalleOpcional')}
                           value={denunciaDetalle}
                           onChange={(e) => setDenunciaDetalle(e.target.value)}
                           style={{ ...estiloTexto, minHeight: '50px' }}
@@ -462,15 +465,15 @@ function Publicaciones() {
                           onClick={() => handleEnviarDenuncia(pub)}
                           style={{ ...estiloBotonPrimario, padding: '6px 14px', marginRight: '8px' }}
                         >
-                          Enviar denuncia
+                          {t('muro.enviarDenuncia')}
                         </button>
                         <button onClick={handleCancelarDenuncia} style={estiloBotonSecundario}>
-                          Cancelar
+                          {t('common.cancelar')}
                         </button>
                       </div>
                     ) : (
                       <button onClick={() => handleIniciarDenuncia(pub)} style={estiloBotonSecundario}>
-                        ⚑ Denunciar
+                        ⚑ {t('muro.denunciar')}
                       </button>
                     )}
                   </div>
@@ -487,10 +490,10 @@ function Publicaciones() {
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '600px', zIndex: 1200, padding: '10px', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#12283d', border: '1px solid #ccff00', borderRadius: '10px', padding: '10px 14px', boxShadow: '0 6px 20px rgba(0,0,0,0.45)' }}>
           <span style={{ color: '#e2f3ff', fontWeight: 'bold' }}>
-            Hay {novedades} publicación{novedades !== 1 ? 'es' : ''} nueva{novedades !== 1 ? 's' : ''} en el muro
+            {t('muro.novedades', { count: novedades })}
           </span>
           <button onClick={verNovedades} style={{ background: '#ccff00', color: '#12283d', fontWeight: 'bold', border: 'none', borderRadius: '6px', padding: '7px 12px', cursor: 'pointer' }}>
-            Ver ahora
+            {t('muro.verAhora')}
           </button>
         </div>
       </div>

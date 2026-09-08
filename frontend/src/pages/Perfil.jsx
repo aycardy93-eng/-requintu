@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
 import { API_URL } from '../config';
 
 function Perfil() {
   const { token, logout } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -28,7 +30,7 @@ function Perfil() {
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.message || 'No se pudo cargar el perfil.');
+          throw new Error(data.message || t('perfil.errorCargar'));
         }
 
         setNombre(data.usuario.nombre || '');
@@ -43,7 +45,7 @@ function Perfil() {
     };
 
     cargarPerfil();
-  }, [token]);
+  }, [token, t]);
 
   const seleccionarFoto = (e) => {
     const file = e.target.files[0];
@@ -60,12 +62,12 @@ function Perfil() {
     setExito('');
 
     if (!nombre.trim() || !email.trim()) {
-      setError('El nombre y el correo son obligatorios.');
+      setError(t('perfil.camposObligatorios'));
       return;
     }
 
     if (password && password.length < 6) {
-      setError('La nueva contraseña debe tener al menos 6 caracteres.');
+      setError(t('perfil.minimo6'));
       return;
     }
 
@@ -86,7 +88,7 @@ function Perfil() {
         const uploadData = await uploadRes.json();
 
         if (!uploadRes.ok) {
-          throw new Error(uploadData.message || 'No se pudo subir la foto.');
+          throw new Error(uploadData.message || t('perfil.errorSubirFoto'));
         }
 
         foto_perfil = uploadData.imagen_url;
@@ -103,7 +105,7 @@ function Perfil() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'No se pudo actualizar el perfil.');
+        throw new Error(data.message || t('perfil.errorActualizar'));
       }
 
       setNombre(data.usuario.nombre);
@@ -111,7 +113,7 @@ function Perfil() {
       setFotoPerfil(data.usuario.foto_perfil || '');
       setFotoPerfilFile(null);
       setPassword('');
-      setExito('Perfil actualizado correctamente.');
+      setExito(t('perfil.actualizado'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -120,7 +122,7 @@ function Perfil() {
   };
 
   const handleEliminarCuenta = async () => {
-    if (!window.confirm('¿Seguro que quieres eliminar tu cuenta? Se borrarán todos tus datos, locales y publicaciones. Esta acción no se puede deshacer.')) return;
+    if (!window.confirm(t('perfil.confirmarEliminar'))) return;
     setEliminando(true);
     try {
       const res = await fetch(`${API_URL}/usuarios/perfil`, {
@@ -128,7 +130,7 @@ function Perfil() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al eliminar la cuenta');
+      if (!res.ok) throw new Error(data.error || t('perfil.errorEliminar'));
       logout();
       navigate('/');
     } catch (err) {
@@ -149,13 +151,13 @@ function Perfil() {
     color: '#12283d',
   };
 
-  if (cargando) return <FondoPagina><p style={{ padding: '20px' }}>Cargando perfil...</p></FondoPagina>;
+  if (cargando) return <FondoPagina><p style={{ padding: '20px' }}>{t('perfil.cargando')}</p></FondoPagina>;
 
   return (
     <FondoPagina>
       <main style={{ maxWidth: '500px', margin: '40px auto', padding: '0 15px', fontFamily: 'sans-serif' }}>
-        <h1 style={{ marginTop: 0 }}>Mi perfil</h1>
-        <p style={{ color: '#a9c9bb' }}>Tipo de cuenta: <strong style={{ color: '#ccff00' }}>{rol || 'usuario'}</strong></p>
+        <h1 style={{ marginTop: 0 }}>{t('perfil.titulo')}</h1>
+        <p style={{ color: '#a9c9bb' }}>{t('perfil.tipoCuenta')}: <strong style={{ color: '#ccff00' }}>{rol || t('perfil.usuario')}</strong></p>
 
         <div style={{
           background: 'rgba(18, 40, 61, 0.85)',
@@ -176,7 +178,7 @@ function Perfil() {
               </div>
             )}
             <div>
-              <label htmlFor="fotoPerfil" style={{ color: '#a9c9bb' }}>Foto de perfil</label>
+              <label htmlFor="fotoPerfil" style={{ color: '#a9c9bb' }}>{t('perfil.fotoPerfil')}</label>
               <input
                 id="fotoPerfil"
                 type="file"
@@ -192,7 +194,7 @@ function Perfil() {
 
           <form onSubmit={guardarPerfil}>
             <div style={{ marginBottom: '15px' }}>
-              <label htmlFor="nombre" style={{ color: '#dce8e3' }}>Nombre</label>
+              <label htmlFor="nombre" style={{ color: '#dce8e3' }}>{t('perfil.nombre')}</label>
               <input
                 id="nombre"
                 type="text"
@@ -204,7 +206,7 @@ function Perfil() {
             </div>
 
             <div style={{ marginBottom: '15px' }}>
-              <label htmlFor="email" style={{ color: '#dce8e3' }}>Correo electrónico</label>
+              <label htmlFor="email" style={{ color: '#dce8e3' }}>{t('perfil.correo')}</label>
               <input
                 id="email"
                 type="email"
@@ -216,14 +218,14 @@ function Perfil() {
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <label htmlFor="password" style={{ color: '#dce8e3' }}>Nueva contraseña <span style={{ color: '#a9c9bb' }}>(opcional)</span></label>
+              <label htmlFor="password" style={{ color: '#dce8e3' }}>{t('perfil.nuevaContrasena')} <span style={{ color: '#a9c9bb' }}>({t('perfil.opcional')})</span></label>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={6}
-                placeholder="Déjala vacía para conservar la actual"
+                placeholder={t('perfil.placeholderContrasena')}
                 style={estiloInput}
               />
             </div>
@@ -232,7 +234,7 @@ function Perfil() {
               padding: '10px 20px', backgroundColor: '#ccff00', color: '#12283d', border: 'none',
               borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer',
             }}>
-              {guardando ? 'Guardando...' : 'Guardar cambios'}
+              {guardando ? t('perfil.guardando') : t('perfil.guardarCambios')}
             </button>
           </form>
 
@@ -246,10 +248,10 @@ function Perfil() {
               border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold',
             }}
           >
-            {eliminando ? 'Eliminando...' : 'Eliminar mi cuenta'}
+            {eliminando ? t('perfil.eliminando') : t('perfil.eliminarCuenta')}
           </button>
           <p style={{ fontSize: '12px', color: '#a9c9bb', marginTop: '6px' }}>
-            Esta acción borra permanentemente tu cuenta y todos tus datos.
+            {t('perfil.avisoBorrado')}
           </p>
         </div>
       </main>

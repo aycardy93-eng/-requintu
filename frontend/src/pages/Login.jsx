@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../config';
 
@@ -17,6 +18,7 @@ const imagenesCarrusel = [
 ];
 
 export default function Login() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [recordar, setRecordar] = useState(false);
@@ -65,7 +67,7 @@ export default function Login() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Credenciales incorrectas');
+        setError(data.error || t('login.credencialesIncorrectas'));
         return;
       }
 
@@ -79,7 +81,7 @@ export default function Login() {
       navigate('/mapa');
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
-      setError('No se pudo conectar con el servidor');
+      setError(t('login.errorServidor'));
     } finally {
       setEnviando(false);
     }
@@ -180,7 +182,7 @@ export default function Login() {
               fontSize: '20px',
             }}
           >
-            REQUINTU - Iniciar sesión
+            REQUINTU - {t('login.titulo')}
           </h2>
 
           {error && (
@@ -193,7 +195,7 @@ export default function Login() {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#a9c9bb' }}>
-                Correo:
+                {t('login.correo')}:
               </label>
               <input
                 type="email"
@@ -214,7 +216,7 @@ export default function Login() {
 
             <div>
               <label style={{ display: 'block', fontSize: '13px', marginBottom: '5px', color: '#a9c9bb' }}>
-                Contraseña:
+                {t('login.contrasena')}:
               </label>
               <input
                 type="password"
@@ -240,7 +242,7 @@ export default function Login() {
                 onChange={(e) => setRecordar(e.target.checked)}
                 style={{ width: 16, height: 16, accentColor: '#ccff00', cursor: 'pointer' }}
               />
-              Recuérdame en este dispositivo
+              {t('login.recuerdame')}
             </label>
 
             <button
@@ -259,20 +261,20 @@ export default function Login() {
                 transition: 'transform 0.12s ease, opacity 0.15s ease',
               }}
             >
-              {enviando ? 'Ingresando...' : 'Ingresar'}
+              {enviando ? t('login.ingresando') : t('login.ingresar')}
             </button>
           </form>
 
           <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '13px' }}>
             <Link to="/olvide-password" style={{ color: '#a9c9bb', textDecoration: 'none' }}>
-              ¿Olvidaste tu contraseña?
+              {t('login.olvidaste')}
             </Link>
           </p>
 
           <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#a9c9bb' }}>
-            ¿No tienes cuenta?{' '}
+            {t('login.sinCuenta')}{' '}
             <Link to="/register" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>
-              Regístrate
+              {t('login.registrate')}
             </Link>
           </p>
         </div>

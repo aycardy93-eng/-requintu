@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
+import { localeFecha } from '../i18n';
 import { API_URL } from '../config';
 import BACKEND_ORIGIN from '../config';
 
@@ -90,17 +92,18 @@ const estilos = {
 };
 
 function Resumen({ stats }) {
+  const { t } = useTranslation();
   const tarjetas = [
-    { label: 'Usuarios', valor: stats?.totalUsuarios ?? '-', icono: '👤' },
-    { label: 'Nuevos (7 días)', valor: stats?.usuariosNuevos7dias ?? '-', icono: '🆕' },
-    { label: 'Locales', valor: stats?.totalLocales ?? '-', icono: '🏪' },
-    { label: 'Publicaciones', valor: stats?.totalPublicaciones ?? '-', icono: '📝' },
-    { label: 'Calificaciones', valor: stats?.totalCalificaciones ?? '-', icono: '⭐' },
-    { label: 'Promedio', valor: stats ? Number(stats.promedioCalificaciones).toFixed(1) : '-', icono: '📊' },
-    { label: 'Promociones', valor: stats?.totalPlanes ?? '-', icono: '🎉' },
+    { label: t('admin.usuarios'), valor: stats?.totalUsuarios ?? '-', icono: '👤' },
+    { label: t('admin.nuevos7dias'), valor: stats?.usuariosNuevos7dias ?? '-', icono: '🆕' },
+    { label: t('admin.locales'), valor: stats?.totalLocales ?? '-', icono: '🏪' },
+    { label: t('admin.publicaciones'), valor: stats?.totalPublicaciones ?? '-', icono: '📝' },
+    { label: t('admin.calificaciones'), valor: stats?.totalCalificaciones ?? '-', icono: '⭐' },
+    { label: t('admin.promedio'), valor: stats ? Number(stats.promedioCalificaciones).toFixed(1) : '-', icono: '📊' },
+    { label: t('admin.promociones'), valor: stats?.totalPlanes ?? '-', icono: '🎉' },
   ];
 
-  const rolLabels = { admin: 'Administradores', comerciante: 'Comerciantes', turista: 'Turistas' };
+  const rolLabels = { admin: t('admin.administradores'), comerciante: t('admin.comerciantes'), turista: t('admin.turistas') };
 
   return (
     <div>
@@ -116,7 +119,7 @@ function Resumen({ stats }) {
 
       {stats?.usuariosPorRol?.length > 0 && (
         <div style={estilos.tarjeta}>
-          <h3 style={{ marginTop: 0 }}>Usuarios por rol</h3>
+          <h3 style={{ marginTop: 0 }}>{t('admin.usuariosPorRol')}</h3>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {stats.usuariosPorRol.map((r) => (
               <div key={r.rol} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '10px 16px' }}>
@@ -132,6 +135,7 @@ function Resumen({ stats }) {
 }
 
 function Usuarios({ token }) {
+  const { t } = useTranslation();
   const [usuarios, setUsuarios] = useState([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
@@ -153,7 +157,7 @@ function Usuarios({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al cargar usuarios');
+      if (!res.ok) throw new Error(data.error || t('admin.errorCargarUsuarios'));
       setUsuarios(data.usuarios || []);
       setTotal(data.total || 0);
     } catch (err) {
@@ -161,7 +165,7 @@ function Usuarios({ token }) {
     } finally {
       setCargando(false);
     }
-  }, [token, q, filtroRol, pagina, porPagina]);
+  }, [token, q, filtroRol, pagina, porPagina, t]);
 
   useEffect(() => {
     const temporizador = setTimeout(cargar, 400);
@@ -169,7 +173,7 @@ function Usuarios({ token }) {
   }, [cargar]);
 
   const cambiarRol = async (id, rolActual) => {
-    if (!window.confirm('¿Cambiar el rol de este usuario?')) return;
+    if (!window.confirm(t('admin.confirmarCambiarRol'))) return;
     const nuevoRol = rolActual === 'admin' ? 'comerciante' : 'admin';
     setCambiando(id);
     setError('');
@@ -180,7 +184,7 @@ function Usuarios({ token }) {
         body: JSON.stringify({ rol: nuevoRol }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al cambiar rol');
+      if (!res.ok) throw new Error(data.error || t('admin.errorCambiarRol'));
       cargar();
     } catch (err) {
       setError(err.message);
@@ -190,7 +194,7 @@ function Usuarios({ token }) {
   };
 
   const eliminar = async (u) => {
-    if (!window.confirm(`¿Eliminar a "${u.nombre}" (${u.email})? Se borrarán sus locales, publicaciones y calificaciones.`)) return;
+    if (!window.confirm(t('admin.confirmarEliminarUsuario', { nombre: u.nombre, email: u.email }))) return;
     setCambiando(u.id_usuario);
     setError('');
     try {
@@ -199,7 +203,7 @@ function Usuarios({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al eliminar usuario');
+      if (!res.ok) throw new Error(data.error || t('admin.errorEliminarUsuario'));
       cargar();
     } catch (err) {
       setError(err.message);
@@ -214,7 +218,7 @@ function Usuarios({ token }) {
       {error && <div style={estilos.aviso}>{error}</div>}
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <input
-          placeholder="Buscar por nombre o correo..."
+          placeholder={t('admin.buscarUsuario')}
           value={q}
           onChange={(e) => { setQ(e.target.value); setPagina(1); }}
           style={{ ...estilos.input, flex: 1, minWidth: '220px', marginBottom: '15px' }}
@@ -224,28 +228,28 @@ function Usuarios({ token }) {
           onChange={(e) => { setFiltroRol(e.target.value); setPagina(1); }}
           style={{ ...estilos.input, width: 'auto', marginBottom: '15px' }}
         >
-          <option value="">Todos los roles</option>
+          <option value="">{t('admin.todosRoles')}</option>
           <option value="admin">Admin</option>
-          <option value="comerciante">Comerciante</option>
-          <option value="turista">Turista</option>
+          <option value="comerciante">{t('admin.comerciante')}</option>
+          <option value="turista">{t('admin.turista')}</option>
         </select>
       </div>
 
       <div style={estilos.tarjeta}>
         {cargando ? (
-          <p>Cargando...</p>
+          <p>{t('common.cargando')}</p>
         ) : usuarios.length === 0 ? (
-          <p>No hay usuarios.</p>
+          <p>{t('admin.sinUsuarios')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ ...estilos.tabla, minWidth: '640px' }}>
             <thead>
               <tr>
-                <th style={estilos.th}>Usuario</th>
-                <th style={estilos.th}>Rol</th>
-                <th style={estilos.th}>Locales</th>
-                <th style={estilos.th}>Publicaciones</th>
-                <th style={estilos.th}>Acciones</th>
+                <th style={estilos.th}>{t('admin.usuario')}</th>
+                <th style={estilos.th}>{t('admin.rol')}</th>
+                <th style={estilos.th}>{t('admin.locales')}</th>
+                <th style={estilos.th}>{t('admin.publicaciones')}</th>
+                <th style={estilos.th}>{t('admin.acciones')}</th>
               </tr>
             </thead>
             <tbody>
@@ -255,7 +259,7 @@ function Usuarios({ token }) {
                     <strong>{u.nombre}</strong>
                     <div style={{ fontSize: '12px', color: '#a9c9bb' }}>{u.email}</div>
                     <div style={{ fontSize: '12px', color: '#8aa6a0' }}>
-                      Registro: {new Date(u.fecha_registro).toLocaleDateString('es-CO')}
+                      {t('admin.registro')}: {new Date(u.fecha_registro).toLocaleDateString(localeFecha())}
                     </div>
                   </td>
                   <td style={estilos.td}>
@@ -275,14 +279,14 @@ function Usuarios({ token }) {
                       disabled={cambiando === u.id_usuario}
                       style={{ ...estilos.boton, background: '#2a6a94', color: 'white', marginRight: '6px' }}
                     >
-                      {cambiando === u.id_usuario ? '...' : u.rol === 'admin' ? 'Quitar admin' : 'Hacer admin'}
+                      {cambiando === u.id_usuario ? '...' : u.rol === 'admin' ? t('admin.quitarAdmin') : t('admin.hacerAdmin')}
                     </button>
                     <button
                       onClick={() => eliminar(u)}
                       disabled={cambiando === u.id_usuario}
                       style={{ ...estilos.boton, background: '#dc2626', color: 'white' }}
                     >
-                      Eliminar
+                      {t('common.eliminar')}
                     </button>
                   </td>
                 </tr>
@@ -296,11 +300,11 @@ function Usuarios({ token }) {
       {totalPaginas > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
           <button onClick={() => setPagina(Math.max(1, pagina - 1))} disabled={pagina === 1} style={estilos.boton}>
-            ← Anterior
+            ← {t('admin.anterior')}
           </button>
-          <span>Página {pagina} de {totalPaginas}</span>
+          <span>{t('admin.paginaDe', { pagina, total: totalPaginas })}</span>
           <button onClick={() => setPagina(Math.min(totalPaginas, pagina + 1))} disabled={pagina === totalPaginas} style={estilos.boton}>
-            Siguiente →
+            {t('admin.siguiente')} →
           </button>
         </div>
       )}
@@ -309,6 +313,7 @@ function Usuarios({ token }) {
 }
 
 function LocalesAdmin({ token }) {
+  const { t } = useTranslation();
   const [locales, setLocales] = useState([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
@@ -328,7 +333,7 @@ function LocalesAdmin({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al cargar locales');
+      if (!res.ok) throw new Error(data.error || t('admin.errorCargarLocales'));
       setLocales(data.locales || []);
       setTotal(data.total || 0);
     } catch (err) {
@@ -336,7 +341,7 @@ function LocalesAdmin({ token }) {
     } finally {
       setCargando(false);
     }
-  }, [token, q, pagina, porPagina]);
+  }, [token, q, pagina, porPagina, t]);
 
   useEffect(() => {
     const temporizador = setTimeout(cargar, 400);
@@ -344,7 +349,7 @@ function LocalesAdmin({ token }) {
   }, [cargar]);
 
   const eliminar = async (l) => {
-    if (!window.confirm(`¿Eliminar el local "${l.nombre}"? También se borran sus calificaciones y promociones.`)) return;
+    if (!window.confirm(t('admin.confirmarEliminarLocal', { nombre: l.nombre }))) return;
     setEliminando(l.id_local);
     setError('');
     try {
@@ -353,7 +358,7 @@ function LocalesAdmin({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al eliminar local');
+      if (!res.ok) throw new Error(data.error || t('admin.errorEliminarLocal'));
       cargar();
     } catch (err) {
       setError(err.message);
@@ -367,27 +372,27 @@ function LocalesAdmin({ token }) {
     <div>
       {error && <div style={estilos.aviso}>{error}</div>}
       <input
-        placeholder="Buscar local por nombre..."
+        placeholder={t('admin.buscarLocal')}
         value={q}
         onChange={(e) => { setQ(e.target.value); setPagina(1); }}
         style={estilos.input}
       />
       <div style={estilos.tarjeta}>
         {cargando ? (
-          <p>Cargando...</p>
+          <p>{t('common.cargando')}</p>
         ) : locales.length === 0 ? (
-          <p>No hay locales.</p>
+          <p>{t('admin.sinLocales')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ ...estilos.tabla, minWidth: '760px' }}>
             <thead>
               <tr>
-                <th style={estilos.th}>Local</th>
-                <th style={estilos.th}>Ubicación</th>
-                <th style={estilos.th}>Propietario</th>
-                <th style={estilos.th}>Estrellas</th>
-                <th style={estilos.th}>Promociones</th>
-                <th style={estilos.th}>Acciones</th>
+                <th style={estilos.th}>{t('admin.local')}</th>
+                <th style={estilos.th}>{t('admin.ubicacion')}</th>
+                <th style={estilos.th}>{t('admin.propietario')}</th>
+                <th style={estilos.th}>{t('admin.estrellas')}</th>
+                <th style={estilos.th}>{t('admin.promociones')}</th>
+                <th style={estilos.th}>{t('admin.acciones')}</th>
               </tr>
             </thead>
             <tbody>
@@ -408,11 +413,11 @@ function LocalesAdmin({ token }) {
                         <Link to={`/locales/${l.id_local}`} style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>
                           {l.nombre}
                         </Link>
-                        <div style={{ fontSize: '12px', color: '#a9c9bb' }}>{l.categoria || 'Sin categoría'}</div>
+                        <div style={{ fontSize: '12px', color: '#a9c9bb' }}>{l.categoria || t('localDetalle.sinCategoria')}</div>
                       </div>
                     </div>
                   </td>
-                  <td style={estilos.td}>{l.municipio || 'Sin municipio'}</td>
+                  <td style={estilos.td}>{l.municipio || t('localDetalle.sinMunicipio')}</td>
                   <td style={estilos.td}>
                     {l.propietario || '—'}
                     <div style={{ fontSize: '12px', color: '#8aa6a0' }}>{l.email_propietario}</div>
@@ -425,7 +430,7 @@ function LocalesAdmin({ token }) {
                       disabled={eliminando === l.id_local}
                       style={{ ...estilos.boton, background: '#dc2626', color: 'white' }}
                     >
-                      {eliminando === l.id_local ? '...' : 'Eliminar'}
+                      {eliminando === l.id_local ? '...' : t('common.eliminar')}
                     </button>
                   </td>
                 </tr>
@@ -438,9 +443,9 @@ function LocalesAdmin({ token }) {
 
       {totalPaginas > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
-          <button onClick={() => setPagina(Math.max(1, pagina - 1))} disabled={pagina === 1} style={estilos.boton}>← Anterior</button>
-          <span>Página {pagina} de {totalPaginas}</span>
-          <button onClick={() => setPagina(Math.min(totalPaginas, pagina + 1))} disabled={pagina === totalPaginas} style={estilos.boton}>Siguiente →</button>
+          <button onClick={() => setPagina(Math.max(1, pagina - 1))} disabled={pagina === 1} style={estilos.boton}>← {t('admin.anterior')}</button>
+          <span>{t('admin.paginaDe', { pagina, total: totalPaginas })}</span>
+          <button onClick={() => setPagina(Math.min(totalPaginas, pagina + 1))} disabled={pagina === totalPaginas} style={estilos.boton}>{t('admin.siguiente')} →</button>
         </div>
       )}
     </div>
@@ -448,6 +453,7 @@ function LocalesAdmin({ token }) {
 }
 
 function PublicacionesAdmin({ token }) {
+  const { t } = useTranslation();
   const [publicaciones, setPublicaciones] = useState([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
@@ -467,7 +473,7 @@ function PublicacionesAdmin({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al cargar publicaciones');
+      if (!res.ok) throw new Error(data.error || t('admin.errorCargarPublicaciones'));
       setPublicaciones(data.publicaciones || []);
       setTotal(data.total || 0);
     } catch (err) {
@@ -475,7 +481,7 @@ function PublicacionesAdmin({ token }) {
     } finally {
       setCargando(false);
     }
-  }, [token, q, pagina, porPagina]);
+  }, [token, q, pagina, porPagina, t]);
 
   useEffect(() => {
     const temporizador = setTimeout(cargar, 400);
@@ -483,7 +489,7 @@ function PublicacionesAdmin({ token }) {
   }, [cargar]);
 
   const eliminar = async (p) => {
-    if (!window.confirm('¿Eliminar esta publicación?')) return;
+    if (!window.confirm(t('admin.confirmarEliminarPublicacion'))) return;
     setEliminando(p.id);
     setError('');
     try {
@@ -492,7 +498,7 @@ function PublicacionesAdmin({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al eliminar publicación');
+      if (!res.ok) throw new Error(data.error || t('admin.errorEliminarPublicacion'));
       cargar();
     } catch (err) {
       setError(err.message);
@@ -506,25 +512,25 @@ function PublicacionesAdmin({ token }) {
     <div>
       {error && <div style={estilos.aviso}>{error}</div>}
       <input
-        placeholder="Buscar por contenido..."
+        placeholder={t('admin.buscarContenido')}
         value={q}
         onChange={(e) => { setQ(e.target.value); setPagina(1); }}
         style={estilos.input}
       />
       <div style={estilos.tarjeta}>
         {cargando ? (
-          <p>Cargando...</p>
+          <p>{t('common.cargando')}</p>
         ) : publicaciones.length === 0 ? (
-          <p>No hay publicaciones.</p>
+          <p>{t('admin.sinPublicaciones')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ ...estilos.tabla, minWidth: '560px' }}>
             <thead>
               <tr>
-                <th style={estilos.th}>Autor</th>
-                <th style={estilos.th}>Contenido</th>
-                <th style={estilos.th}>Fecha</th>
-                <th style={estilos.th}>Acciones</th>
+                <th style={estilos.th}>{t('admin.autor')}</th>
+                <th style={estilos.th}>{t('admin.contenido')}</th>
+                <th style={estilos.th}>{t('admin.fecha')}</th>
+                <th style={estilos.th}>{t('admin.acciones')}</th>
               </tr>
             </thead>
             <tbody>
@@ -543,7 +549,7 @@ function PublicacionesAdmin({ token }) {
                     )}
                   </td>
                   <td style={estilos.td}>
-                    {new Date(p.fecha_creacion).toLocaleDateString('es-CO', {
+                    {new Date(p.fecha_creacion).toLocaleDateString(localeFecha(), {
                       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
                     })}
                   </td>
@@ -553,7 +559,7 @@ function PublicacionesAdmin({ token }) {
                       disabled={eliminando === p.id}
                       style={{ ...estilos.boton, background: '#dc2626', color: 'white' }}
                     >
-                      {eliminando === p.id ? '...' : 'Eliminar'}
+                      {eliminando === p.id ? '...' : t('common.eliminar')}
                     </button>
                   </td>
                 </tr>
@@ -566,9 +572,9 @@ function PublicacionesAdmin({ token }) {
 
       {totalPaginas > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
-          <button onClick={() => setPagina(Math.max(1, pagina - 1))} disabled={pagina === 1} style={estilos.boton}>← Anterior</button>
-          <span>Página {pagina} de {totalPaginas}</span>
-          <button onClick={() => setPagina(Math.min(totalPaginas, pagina + 1))} disabled={pagina === totalPaginas} style={estilos.boton}>Siguiente →</button>
+          <button onClick={() => setPagina(Math.max(1, pagina - 1))} disabled={pagina === 1} style={estilos.boton}>← {t('admin.anterior')}</button>
+          <span>{t('admin.paginaDe', { pagina, total: totalPaginas })}</span>
+          <button onClick={() => setPagina(Math.min(totalPaginas, pagina + 1))} disabled={pagina === totalPaginas} style={estilos.boton}>{t('admin.siguiente')} →</button>
         </div>
       )}
     </div>
@@ -576,22 +582,23 @@ function PublicacionesAdmin({ token }) {
 }
 
 function DenunciasAdmin({ token }) {
+  const { t } = useTranslation();
   const [denuncias, setDenuncias] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [actuando, setActuando] = useState(null);
 
   const MOTIVOS = {
-    pornografia: 'Pornografía / contenido sexual',
-    violencia: 'Violencia',
-    spam: 'Spam',
-    otro: 'Otro',
+    pornografia: t('admin.motivoPornografia'),
+    violencia: t('admin.motivoViolencia'),
+    spam: t('admin.motivoSpam'),
+    otro: t('admin.motivoOtro'),
   };
 
   const ESTADOS = {
-    pendiente: { label: 'Pendiente', color: '#fbbf24' },
-    resuelta: { label: 'Resuelta', color: '#4ade80' },
-    descartada: { label: 'Descartada', color: '#94a3b8' },
+    pendiente: { label: t('admin.estadoPendiente'), color: '#fbbf24' },
+    resuelta: { label: t('admin.estadoResuelta'), color: '#4ade80' },
+    descartada: { label: t('admin.estadoDescartada'), color: '#94a3b8' },
   };
 
   const cargar = useCallback(async () => {
@@ -602,14 +609,14 @@ function DenunciasAdmin({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al cargar denuncias');
+      if (!res.ok) throw new Error(data.error || t('admin.errorCargarDenuncias'));
       setDenuncias(data.denuncias || []);
     } catch (err) {
       setError(err.message);
     } finally {
       setCargando(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     cargar();
@@ -625,7 +632,7 @@ function DenunciasAdmin({ token }) {
         body: JSON.stringify({ estado }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al actualizar la denuncia');
+      if (!res.ok) throw new Error(data.error || t('admin.errorActualizarDenuncia'));
       cargar();
     } catch (err) {
       setError(err.message);
@@ -635,7 +642,7 @@ function DenunciasAdmin({ token }) {
   };
 
   const eliminarPublicacion = (d) => async () => {
-    if (!window.confirm('¿Eliminar la publicación denunciada? La denuncia quedará resuelta.')) return;
+    if (!window.confirm(t('admin.confirmarEliminarDenunciada'))) return;
     setActuando(d.id);
     setError('');
     try {
@@ -644,7 +651,7 @@ function DenunciasAdmin({ token }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al eliminar publicación');
+      if (!res.ok) throw new Error(data.error || t('admin.errorEliminarPublicacion'));
       await fetch(`${API_URL}/admin/denuncias/${d.id}/resolver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -663,18 +670,18 @@ function DenunciasAdmin({ token }) {
       {error && <div style={estilos.aviso}>{error}</div>}
       <div style={estilos.tarjeta}>
         {cargando ? (
-          <p>Cargando...</p>
+          <p>{t('common.cargando')}</p>
         ) : denuncias.length === 0 ? (
-          <p>No hay denuncias. El clasificador automático se encarga de las imágenes sexuales.</p>
+          <p>{t('admin.sinDenuncias')}</p>
         ) : (
           <table style={{ ...estilos.tabla, minWidth: '720px' }}>
             <thead>
               <tr>
-                <th style={estilos.th}>Publicación</th>
-                <th style={estilos.th}>Motivo</th>
-                <th style={estilos.th}>Reportada por</th>
-                <th style={estilos.th}>Estado</th>
-                <th style={estilos.th}>Acciones</th>
+                <th style={estilos.th}>{t('admin.publicacion')}</th>
+                <th style={estilos.th}>{t('admin.motivo')}</th>
+                <th style={estilos.th}>{t('admin.reportadaPor')}</th>
+                <th style={estilos.th}>{t('admin.estado')}</th>
+                <th style={estilos.th}>{t('admin.acciones')}</th>
               </tr>
             </thead>
             <tbody>
@@ -683,9 +690,9 @@ function DenunciasAdmin({ token }) {
                   <td style={estilos.td}>
                     <strong>{d.autor_publicacion}</strong>
                     <div style={{ fontSize: '13px', color: '#a9c9bb' }}>{d.contenido}</div>
-                    {d.detalle && <div style={{ fontSize: '12px', color: '#ffb4b4' }}>Detalle: {d.detalle}</div>}
+                    {d.detalle && <div style={{ fontSize: '12px', color: '#ffb4b4' }}>{t('admin.detalle')}: {d.detalle}</div>}
                     <div style={{ fontSize: '11px', color: '#8aa6a0', marginTop: '4px' }}>
-                      {new Date(d.creada_en).toLocaleDateString('es-CO', {
+                      {new Date(d.creada_en).toLocaleDateString(localeFecha(), {
                         day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
                       })}
                     </div>
@@ -704,7 +711,7 @@ function DenunciasAdmin({ token }) {
                         disabled={actuando === d.id || d.estado !== 'pendiente'}
                         style={{ ...estilos.boton, background: '#dc2626', color: 'white' }}
                       >
-                        {actuando === d.id ? '...' : 'Eliminar publicación'}
+                        {actuando === d.id ? '...' : t('admin.eliminarPublicacion')}
                       </button>
                       {d.estado === 'pendiente' && (
                         <>
@@ -713,14 +720,14 @@ function DenunciasAdmin({ token }) {
                             disabled={actuando === d.id}
                             style={{ ...estilos.boton, background: '#2a6a94', color: 'white' }}
                           >
-                            Aprobarla
+                            {t('admin.aprobarla')}
                           </button>
                           <button
                             onClick={resolver(d.id, 'descartada')}
                             disabled={actuando === d.id}
                             style={{ ...estilos.boton, background: '#4b5563', color: 'white' }}
                           >
-                            Descartar
+                            {t('admin.descartar')}
                           </button>
                         </>
                       )}
@@ -738,6 +745,7 @@ function DenunciasAdmin({ token }) {
 
 function Admin() {
   const { token } = useAuth();
+  const { t } = useTranslation();
   const [pestaña, setPestaña] = useState('resumen');
   const [stats, setStats] = useState(null);
   const [cargandoStats, setCargandoStats] = useState(true);
@@ -753,19 +761,19 @@ function Admin() {
   }, [token]);
 
   const pestañas = [
-    { id: 'resumen', label: 'Resumen' },
-    { id: 'usuarios', label: 'Usuarios' },
-    { id: 'locales', label: 'Locales' },
-    { id: 'publicaciones', label: 'Publicaciones' },
-    { id: 'reportes', label: 'Reportes' },
+    { id: 'resumen', label: t('admin.resumen') },
+    { id: 'usuarios', label: t('admin.usuarios') },
+    { id: 'locales', label: t('admin.locales') },
+    { id: 'publicaciones', label: t('admin.publicaciones') },
+    { id: 'reportes', label: t('admin.reportes') },
   ];
 
   return (
     <FondoPagina>
       <div style={estilos.contenedor}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-          <h1 style={{ margin: 0 }}>Panel de administración</h1>
-          <Link to="/" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← Volver al inicio</Link>
+          <h1 style={{ margin: 0 }}>{t('admin.panel')}</h1>
+          <Link to="/" style={{ color: '#ccff00', fontWeight: 'bold', textDecoration: 'none' }}>← {t('admin.volverInicio')}</Link>
         </div>
 
         <div style={estilos.pestañas}>
@@ -781,8 +789,8 @@ function Admin() {
         </div>
 
         {pestaña === 'resumen' && (
-          cargandoStats ? <p>Cargando...</p> : (
-            stats ? <Resumen stats={stats} /> : <div style={estilos.aviso}>No se pudieron cargar las estadísticas.</div>
+          cargandoStats ? <p>{t('common.cargando')}</p> : (
+            stats ? <Resumen stats={stats} /> : <div style={estilos.aviso}>{t('admin.errorEstadisticas')}</div>
           )
         )}
         {pestaña === 'usuarios' && <Usuarios token={token} />}

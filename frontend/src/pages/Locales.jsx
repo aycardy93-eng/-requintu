@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import FondoPagina from '../components/FondoPagina';
 import BACKEND_ORIGIN, { API_URL } from '../config';
 
@@ -10,6 +11,7 @@ const resolverImagenUrl = (url) => {
 };
 
 export default function Locales() {
+  const { t } = useTranslation();
   const [locales, setLocales] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [municipios, setMunicipios] = useState([]);
@@ -54,10 +56,10 @@ export default function Locales() {
         setCargando(false);
       })
       .catch(() => {
-        setError('No se pudo conectar con el servidor.');
+        setError(t('locales.errorServidor'));
         setCargando(false);
       });
-  }, [searchTerm, selectedCategory, selectedDepartment, selectedMunicipality]);
+  }, [searchTerm, selectedCategory, selectedDepartment, selectedMunicipality, t]);
 
   // Departamentos únicos, derivados de la lista de municipios
   const departamentos = [...new Set(municipios.map((m) => m.departamento).filter(Boolean))].sort();
@@ -80,17 +82,17 @@ export default function Locales() {
     <FondoPagina>
       <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Locales turísticos</h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{t('locales.titulo')}</h1>
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
             <Link to="/crear-local" style={{
               backgroundColor: '#ccff00', color: '#12283d', textDecoration: 'none',
               fontWeight: 'bold', padding: '8px 14px', borderRadius: '6px',
               transition: 'transform 0.12s ease, background-color 0.15s ease',
             }}>
-              + Crear local
+              + {t('locales.crearLocal')}
             </Link>
             <Link to="/" style={{ color: '#ccff00', textDecoration: 'none', fontWeight: '500' }}>
-              ← Volver
+              ← {t('common.volver')}
             </Link>
           </div>
         </div>
@@ -99,7 +101,7 @@ export default function Locales() {
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '30px' }}>
           <input
             type="text"
-            placeholder="Buscar por nombre..."
+            placeholder={t('locales.buscar')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ ...estiloInput, flex: '1 1 200px' }}
@@ -110,7 +112,7 @@ export default function Locales() {
             onChange={(e) => setSelectedCategory(e.target.value)}
             style={estiloInput}
           >
-            <option value="">Todas las categorías</option>
+            <option value="">{t('locales.todasCategorias')}</option>
             {categorias.map((cat) => (
               <option key={cat.id_categoria} value={cat.id_categoria}>
                 {cat.nombre}
@@ -126,7 +128,7 @@ export default function Locales() {
             }}
             style={estiloInput}
           >
-            <option value="">Todos los departamentos</option>
+            <option value="">{t('locales.todosDepartamentos')}</option>
             {departamentos.map((dep) => (
               <option key={dep} value={dep}>
                 {dep}
@@ -139,7 +141,7 @@ export default function Locales() {
             onChange={(e) => setSelectedMunicipality(e.target.value)}
             style={estiloInput}
           >
-            <option value="">Todos los municipios</option>
+            <option value="">{t('locales.todosMunicipios')}</option>
             {municipiosFiltrados.map((m) => (
               <option key={m.id_municipio} value={m.id_municipio}>
                 {m.nombre}
@@ -148,12 +150,12 @@ export default function Locales() {
           </select>
         </div>
 
-        {cargando && <p>Cargando locales...</p>}
+        {cargando && <p>{t('locales.cargando')}</p>}
         {error && <p style={{ color: '#ffb4b4' }}>{error}</p>}
-        {!cargando && !error && locales.length === 0 && <p>No se encontraron locales con esos filtros.</p>}
+        {!cargando && !error && locales.length === 0 && <p>{t('locales.sinResultados')}</p>}
         {!cargando && !error && locales.length > 0 && (
           <p style={{ color: '#a9c9bb', fontSize: '14px', margin: '0 0 12px 0' }}>
-            {locales.length} {locales.length === 1 ? 'lugar encontrado' : 'lugares encontrados'} en Colombia
+            {t('locales.encontrados', { count: locales.length, cantidad: locales.length })}
           </p>
         )}
 
@@ -209,7 +211,7 @@ export default function Locales() {
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   ) : (
-                    'Sin imagen'
+                    t('locales.sinImagen')
                   )}
                 </div>
                 <div style={{ padding: '15px' }}>
