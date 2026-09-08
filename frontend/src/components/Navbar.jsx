@@ -96,23 +96,57 @@ export default function Navbar() {
           <Link to="/publicaciones" style={navLinkStyle}>{t('nav.publicaciones')}</Link>
           {isAuthenticated && <Link to="/mapa" style={navLinkStyle}>{t('nav.mapa')}</Link>}
           {usuario?.rol === 'admin' && <Link to="/admin" style={navLinkStyle}>{t('nav.admin')}</Link>}
-          <button
-            onClick={() => cambiarIdioma(i18n.language === 'en' ? 'es' : 'en')}
-            aria-label="Idioma"
-            title={t('nav.cambiarIdioma')}
-            style={{
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.35)',
-              color: '#ccff00',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '12px',
-              padding: '6px 10px',
-            }}
-          >
-            {i18n.language === 'en' ? 'ES' : 'EN'}
-          </button>
+          <div style={{
+            display: 'flex',
+            gap: '2px',
+            alignItems: 'center',
+            border: '1px solid rgba(255,255,255,0.35)',
+            borderRadius: '6px',
+            padding: '2px',
+          }}>
+            <button
+              onClick={() => cambiarIdioma('es')}
+              aria-label={t('nav.cambiarIdioma')}
+              aria-pressed={i18n.language === 'es'}
+              title={t('nav.cambiarIdioma')}
+              style={{
+                background: i18n.language === 'es' ? 'rgba(204,255,0,0.18)' : 'transparent',
+                border: 'none',
+                color: '#ccff00',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '12px',
+                padding: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span aria-hidden="true">🇪🇸</span> ES
+            </button>
+            <button
+              onClick={() => cambiarIdioma('en')}
+              aria-label={t('nav.cambiarIdioma')}
+              aria-pressed={i18n.language === 'en'}
+              title={t('nav.cambiarIdioma')}
+              style={{
+                background: i18n.language === 'en' ? 'rgba(204,255,0,0.18)' : 'transparent',
+                border: 'none',
+                color: '#ccff00',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '12px',
+                padding: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span aria-hidden="true">🇺🇸</span> EN
+            </button>
+          </div>
           {isAuthenticated ? (
             <>
               <span style={{ color: '#e2f3ff', fontWeight: 'bold', fontSize: '14px' }}>
@@ -150,25 +184,60 @@ export default function Navbar() {
           {usuario?.rol === 'admin' && (
             <Link to="/admin" onClick={() => setMenuAbierto(false)} style={navLinkStyle}>{t('nav.admin')}</Link>
           )}
-          <button
-            onClick={() => cambiarIdioma(i18n.language === 'en' ? 'es' : 'en')}
-            style={{
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.35)',
-              color: '#ccff00',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '12px',
-              padding: '10px 16px',
-              marginTop: '4px',
-              textAlign: 'center',
-              display: 'block',
-              width: '100%',
-            }}
-          >
-            {i18n.language === 'en' ? 'ES' : 'EN'}
-          </button>
+          <div style={{
+            display: 'flex',
+            gap: '6px',
+            marginTop: '4px',
+          }}>
+            <button
+              onClick={() => cambiarIdioma('es')}
+              aria-label={t('nav.cambiarIdioma')}
+              aria-pressed={i18n.language === 'es'}
+              title={t('nav.cambiarIdioma')}
+              style={{
+                background: i18n.language === 'es' ? 'rgba(204,255,0,0.18)' : 'transparent',
+                border: '1px solid rgba(255,255,255,0.35)',
+                color: '#ccff00',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '12px',
+                padding: '10px 16px',
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                flex: '1',
+              }}
+            >
+              <span aria-hidden="true">🇪🇸</span> ES
+            </button>
+            <button
+              onClick={() => cambiarIdioma('en')}
+              aria-label={t('nav.cambiarIdioma')}
+              aria-pressed={i18n.language === 'en'}
+              title={t('nav.cambiarIdioma')}
+              style={{
+                background: i18n.language === 'en' ? 'rgba(204,255,0,0.18)' : 'transparent',
+                border: '1px solid rgba(255,255,255,0.35)',
+                color: '#ccff00',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '12px',
+                padding: '10px 16px',
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                flex: '1',
+              }}
+            >
+              <span aria-hidden="true">🇺🇸</span> EN
+            </button>
+          </div>
           {isAuthenticated ? (
             <>
               <span style={{ color: '#e2f3ff', fontWeight: 'bold', fontSize: '14px', padding: '8px 0' }}>
