@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import logoImg from '../assets/logo.jpeg';
+import banderaEs from '../assets/bandera-es.png';
+import banderaUs from '../assets/bandera-us.png';
 
 export default function Navbar() {
   const { isAuthenticated, usuario, logout } = useAuth();
@@ -112,18 +114,21 @@ export default function Navbar() {
               style={{
                 background: i18n.language === 'es' ? 'rgba(204,255,0,0.18)' : 'transparent',
                 border: 'none',
-                color: '#ccff00',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '12px',
                 padding: '4px 8px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
               }}
             >
-              <span aria-hidden="true">🇪🇸</span> ES
+              <img src={banderaEs} alt="Español" style={{
+                width: '24px',
+                height: '16px',
+                objectFit: 'cover',
+                borderRadius: '2px',
+                display: 'block',
+              }} />
             </button>
             <button
               onClick={() => cambiarIdioma('en')}
@@ -133,18 +138,21 @@ export default function Navbar() {
               style={{
                 background: i18n.language === 'en' ? 'rgba(204,255,0,0.18)' : 'transparent',
                 border: 'none',
-                color: '#ccff00',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '12px',
                 padding: '4px 8px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
               }}
             >
-              <span aria-hidden="true">🇺🇸</span> EN
+              <img src={banderaUs} alt="English" style={{
+                width: '24px',
+                height: '16px',
+                objectFit: 'cover',
+                borderRadius: '2px',
+                display: 'block',
+              }} />
             </button>
           </div>
           {isAuthenticated ? (
@@ -197,13 +205,9 @@ export default function Navbar() {
               style={{
                 background: i18n.language === 'es' ? 'rgba(204,255,0,0.18)' : 'transparent',
                 border: '1px solid rgba(255,255,255,0.35)',
-                color: '#ccff00',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '12px',
                 padding: '10px 16px',
-                textAlign: 'center',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -211,7 +215,13 @@ export default function Navbar() {
                 flex: '1',
               }}
             >
-              <span aria-hidden="true">🇪🇸</span> ES
+              <img src={banderaEs} alt="Español" style={{
+                width: '36px',
+                height: '24px',
+                objectFit: 'cover',
+                borderRadius: '3px',
+                display: 'block',
+              }} />
             </button>
             <button
               onClick={() => cambiarIdioma('en')}
@@ -221,13 +231,9 @@ export default function Navbar() {
               style={{
                 background: i18n.language === 'en' ? 'rgba(204,255,0,0.18)' : 'transparent',
                 border: '1px solid rgba(255,255,255,0.35)',
-                color: '#ccff00',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '12px',
                 padding: '10px 16px',
-                textAlign: 'center',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -235,7 +241,13 @@ export default function Navbar() {
                 flex: '1',
               }}
             >
-              <span aria-hidden="true">🇺🇸</span> EN
+              <img src={banderaUs} alt="English" style={{
+                width: '36px',
+                height: '24px',
+                objectFit: 'cover',
+                borderRadius: '3px',
+                display: 'block',
+              }} />
             </button>
           </div>
           {isAuthenticated ? (
