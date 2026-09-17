@@ -138,10 +138,12 @@
     "sinResultados": "No places found with those filters.",
     "encontrados_one": "{{cantidad}} place found in Colombia",
     "encontrados_other": "{{cantidad}} places found in Colombia",
-    "sinImagen": "No image"
+    "sinImagen": "No image",
+    "oficial": "Official"
   },
   "localDetalle": {
     "confirmarEliminarLocal": "Are you sure you want to delete this place? This action cannot be undone.",
+    "oficial": "Official",
     "errorEliminar": "Error deleting",
     "errorSubirImagen": "Error uploading image",
     "errorActualizar": "Error updating",
@@ -347,6 +349,7 @@
     "administradores": "Administrators",
     "comerciantes": "Business owners",
     "comerciantesPremium": "Premium merchants",
+    "alcaldias": "Mayors' offices",
     "turistas": "Travelers",
     "nuevos7dias": "New (7 days)",
     "calificaciones": "Ratings",
@@ -361,6 +364,7 @@
     "todosRoles": "All roles",
     "comerciante": "Business owner",
     "comerciantePremium": "Premium merchant",
+    "alcaldia": "Mayor's office",
     "turista": "Traveler",
     "sinUsuarios": "There are no users.",
     "usuario": "User",

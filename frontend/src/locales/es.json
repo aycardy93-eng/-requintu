@@ -138,10 +138,12 @@
     "sinResultados": "No se encontraron locales con esos filtros.",
     "encontrados_one": "{{cantidad}} lugar encontrado en Colombia",
     "encontrados_other": "{{cantidad}} lugares encontrados en Colombia",
-    "sinImagen": "Sin imagen"
+    "sinImagen": "Sin imagen",
+    "oficial": "Oficial"
   },
   "localDetalle": {
     "confirmarEliminarLocal": "¿Seguro que quieres eliminar este local? Esta acción no se puede deshacer.",
+    "oficial": "Oficial",
     "errorEliminar": "Error al eliminar",
     "errorSubirImagen": "Error al subir imagen",
     "errorActualizar": "Error al actualizar",
@@ -347,6 +349,7 @@
     "administradores": "Administradores",
     "comerciantes": "Comerciantes",
     "comerciantesPremium": "Comerciantes premium",
+    "alcaldias": "Alcaldías",
     "turistas": "Turistas",
     "nuevos7dias": "Nuevos (7 días)",
     "calificaciones": "Calificaciones",
@@ -361,6 +364,7 @@
     "todosRoles": "Todos los roles",
     "comerciante": "Comerciante",
     "comerciantePremium": "Comerciante premium",
+    "alcaldia": "Alcaldía",
     "turista": "Turista",
     "sinUsuarios": "No hay usuarios.",
     "usuario": "Usuario",

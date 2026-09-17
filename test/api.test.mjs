@@ -224,6 +224,94 @@ test('local creado con varias imagenes devuelve la galeria', async () => {
   assert.deepEqual(local.imagenes, ['/uploads/g1.jpg', '/uploads/g2.jpg', '/uploads/g3.jpg']);
 });
 
+test('rol alcaldia no puede elegirse en el registro', async () => {
+  const credenciales = await registrarUsuario({ rol: 'alcaldia' });
+  const res = await login(credenciales.email, credenciales.password);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.user.rol, 'turista');
+});
+
+test('alcaldia solo puede crear un local y requiere su municipio', async () => {
+  const usuario = await registrarUsuario();
+  await pool.query("UPDATE usuarios SET rol = 'alcaldia' WHERE email = ?", [usuario.email]);
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+
+  const [[{ id_municipio }]] = await pool.query('SELECT id_municipio FROM municipios ORDER BY id_municipio LIMIT 1');
+
+  const sinMunicipio = await fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre: 'Alcaldia sin municipio', descripcion: 'local de prueba', direccion: 'Plaza central' })
+  });
+  assert.equal(sinMunicipio.status, 400);
+
+  const crear = (nombre) => fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre, descripcion: 'local de la alcaldia', direccion: 'Plaza central', id_municipio })
+  });
+
+  const primero = await crear(`Alcaldia ${Date.now()} A`);
+  assert.equal(primero.status, 201);
+  const { id } = await primero.json();
+  localesTest.push(id);
+
+  const segundo = await crear(`Alcaldia ${Date.now()} B`);
+  assert.equal(segundo.status, 403);
+
+  const misLocales = await fetch(`${base}/api/mis-locales`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const mis = await misLocales.json();
+  assert.equal(mis.locales.length, 1);
+});
+
+test('el local de la alcaldia aparece primero en la busqueda de su municipio', async () => {
+  const [[{ id_municipio }]] = await pool.query('SELECT id_municipio FROM municipios ORDER BY id_municipio LIMIT 1');
+
+  const alcalde = await registrarUsuario();
+  await pool.query("UPDATE usuarios SET rol = 'alcaldia' WHERE email = ?", [alcalde.email]);
+  const tokenAlcalde = (await (await login(alcalde.email, alcalde.password)).json()).token;
+
+  const comerciante = await registrarUsuario({ rol: 'comerciante' });
+  const tokenComerciante = (await (await login(comerciante.email, comerciante.password)).json()).token;
+
+  const alcaldiaLocal = await fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenAlcalde}` },
+    body: JSON.stringify({ nombre: `Oficina alcaldia ${Date.now()}`, descripcion: 'local destacado', direccion: 'Plaza central', id_municipio })
+  });
+  assert.equal(alcaldiaLocal.status, 201);
+  const { id: idAlcaldia } = await alcaldiaLocal.json();
+  localesTest.push(idAlcaldia);
+
+  const comercianteLocal = await fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenComerciante}` },
+    body: JSON.stringify({ nombre: `Cafeteria ${Date.now()}`, descripcion: 'local normal', direccion: 'Calle 1', id_municipio })
+  });
+  assert.equal(comercianteLocal.status, 201);
+  const { id: idComerciante } = await comercianteLocal.json();
+  localesTest.push(idComerciante);
+
+  const lista = await fetch(`${base}/api/locales?municipio=${id_municipio}`);
+  assert.equal(lista.status, 200);
+  const { locales } = await lista.json();
+
+  const destacado = locales.find((l) => l.id_local === idAlcaldia);
+  assert.ok(destacado, 'el local de la alcaldía debería aparecer en la búsqueda del municipio');
+  assert.equal(destacado.destacado, 1);
+
+  const idxAlcaldia = locales.findIndex((l) => l.id_local === idAlcaldia);
+  const idxComerciante = locales.findIndex((l) => l.id_local === idComerciante);
+  assert.ok(idxComerciante !== -1, 'el local del comerciante debería aparecer en la búsqueda');
+  assert.ok(
+    idxAlcaldia < idxComerciante,
+    'el local de la alcaldía debe aparecer primero en la búsqueda del municipio'
+  );
+});
+
 test('ciclo completo de publicacion: crear y eliminar', async () => {
   const usuario = await registrarUsuario();
   const { token } = await (await login(usuario.email, usuario.password)).json();

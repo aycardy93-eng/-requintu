@@ -244,16 +244,25 @@ export async function asegurarTablas() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // Ampliar el enum de roles con 'comerciante_premium' (asignable solo por el admin)
+  // Ampliar el enum de roles con 'comerciante_premium' y 'alcaldia' (asignables solo por el admin)
   const [colsRol] = await pool.query(
     `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'rol'`
   );
   const tipoRol = colsRol[0]?.COLUMN_TYPE || '';
-  if (tipoRol && !tipoRol.includes('comerciante_premium')) {
+  if (tipoRol && (!tipoRol.includes('comerciante_premium') || !tipoRol.includes('alcaldia'))) {
     await pool.query(
-      `ALTER TABLE usuarios MODIFY COLUMN rol ENUM('admin','comerciante','comerciante_premium','turista') NOT NULL DEFAULT 'turista'`
+      `ALTER TABLE usuarios MODIFY COLUMN rol ENUM('admin','alcaldia','comerciante','comerciante_premium','turista') NOT NULL DEFAULT 'turista'`
     );
+  }
+
+  // Local destacado (perfil alcaldía): aparece primero en la búsqueda del municipio
+  const [colsDestacado] = await pool.query(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'locales' AND COLUMN_NAME = 'destacado'`
+  );
+  if (colsDestacado.length === 0) {
+    await pool.query('ALTER TABLE locales ADD COLUMN destacado TINYINT(1) NOT NULL DEFAULT 0');
   }
 
   // Galería de un local (varias imágenes)
@@ -707,6 +716,10 @@ app.get('/api/locales', async (req, res) => {
       params.push(`%${escapedBuscar}%`);
     }
 
+    if (municipio || buscar) {
+      query += ' ORDER BY l.destacado DESC, l.id_local ASC';
+    }
+
     const [locales] = await pool.query(query, params);
     res.json({ locales });
   } catch (err) {
@@ -715,7 +728,7 @@ app.get('/api/locales', async (req, res) => {
   }
 });
 
-app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_premium', 'admin']), sinGroserias(['nombre', 'descripcion', 'direccion']), validar([
+app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_premium', 'alcaldia', 'admin']), sinGroserias(['nombre', 'descripcion', 'direccion']), validar([
   body('nombre').trim().isLength({ min: 2, max: 100 }).withMessage('El nombre del local debe tener entre 2 y 100 caracteres'),
   body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
   body('direccion').trim().notEmpty().withMessage('La dirección es obligatoria'),
@@ -728,7 +741,7 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_
   try {
     const { nombre, descripcion, direccion, telefono, imagen_url, imagenes_url, id_categoria, id_municipio } = req.body;
 
-    const limiteLocales = { comerciante: 1, comerciante_premium: 5 }[req.user.rol];
+    const limiteLocales = { comerciante: 1, alcaldia: 1, comerciante_premium: 5 }[req.user.rol];
     if (limiteLocales !== undefined) {
       const [cuenta] = await pool.query(
         'SELECT COUNT(*) AS total FROM locales WHERE id_usuario = ?',
@@ -738,9 +751,15 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_
         return res.status(403).json({
           error: req.user.rol === 'comerciante_premium'
             ? 'El plan premium de comerciante permite hasta 5 locales.'
-            : 'Un comerciante solo puede registrar un local.'
+            : req.user.rol === 'alcaldia'
+              ? 'La alcaldía solo puede registrar un local para su municipio.'
+              : 'Un comerciante solo puede registrar un local.'
         });
       }
+    }
+
+    if (req.user.rol === 'alcaldia' && !id_municipio) {
+      return res.status(400).json({ error: 'La alcaldía debe seleccionar su municipio.' });
     }
 
     if (id_municipio) {
@@ -756,8 +775,8 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_
     const cover = imagen_url || (Array.isArray(imagenes_url) ? imagenes_url[0] : null) || null;
 
     const [result] = await pool.query(
-      'INSERT INTO locales (nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio, id_usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [nombre, descripcion, direccion, telefono || null, cover, id_categoria, id_municipio, req.user.id]
+      'INSERT INTO locales (nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio, id_usuario, destacado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [nombre, descripcion, direccion, telefono || null, cover, id_categoria, id_municipio, req.user.id, req.user.rol === 'alcaldia' ? 1 : 0]
     );
     await guardarImagenesLocal(result.insertId, imagenes_url);
     res.status(201).json({ mensaje: 'Local creado con éxito', id: result.insertId });
@@ -1273,7 +1292,7 @@ app.get('/api/admin/usuarios', authMiddleware, checkRole(['admin']), async (req,
       where.push('(u.nombre LIKE ? OR u.email LIKE ?)');
       params.push(`%${q.trim()}%`, `%${q.trim()}%`);
     }
-    if (rol && ['admin', 'comerciante', 'comerciante_premium', 'turista'].includes(rol)) {
+    if (rol && ['admin', 'alcaldia', 'comerciante', 'comerciante_premium', 'turista'].includes(rol)) {
       where.push('u.rol = ?');
       params.push(rol);
     }
@@ -1304,7 +1323,7 @@ app.get('/api/admin/usuarios', authMiddleware, checkRole(['admin']), async (req,
 });
 
 app.put('/api/admin/usuarios/:id/rol', authMiddleware, checkRole(['admin']), validar([
-  body('rol').isIn(['admin', 'comerciante', 'comerciante_premium', 'turista']).withMessage('Rol inválido')
+  body('rol').isIn(['admin', 'alcaldia', 'comerciante', 'comerciante_premium', 'turista']).withMessage('Rol inválido')
 ]), async (req, res) => {
   try {
     const { id } = req.params;

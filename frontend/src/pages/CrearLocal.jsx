@@ -42,9 +42,9 @@ function CrearLocal() {
       .catch(() => setMunicipios([]));
   }, []);
 
-  // Si es comerciante, revisar si ya registró su único local
+  // Si es comerciante o alcaldía, revisar si ya registró su único local
   useEffect(() => {
-    if (usuario?.rol !== 'comerciante') return;
+    if (!['comerciante', 'alcaldia'].includes(usuario?.rol)) return;
     fetch(`${API_URL}/mis-locales`, {
       headers: { Authorization: `Bearer ${token}` }
     })

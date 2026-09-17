@@ -103,7 +103,7 @@ function Resumen({ stats }) {
     { label: t('admin.promociones'), valor: stats?.totalPlanes ?? '-', icono: '🎉' },
   ];
 
-  const rolLabels = { admin: t('admin.administradores'), comerciante: t('admin.comerciantes'), comerciante_premium: t('admin.comerciantesPremium'), turista: t('admin.turistas') };
+  const rolLabels = { admin: t('admin.administradores'), alcaldia: t('admin.alcaldias'), comerciante: t('admin.comerciantes'), comerciante_premium: t('admin.comerciantesPremium'), turista: t('admin.turistas') };
 
   return (
     <div>
@@ -229,6 +229,7 @@ function Usuarios({ token }) {
         >
           <option value="">{t('admin.todosRoles')}</option>
           <option value="admin">Admin</option>
+          <option value="alcaldia">{t('admin.alcaldia')}</option>
           <option value="comerciante">{t('admin.comerciante')}</option>
           <option value="comerciante_premium">{t('admin.comerciantePremium')}</option>
           <option value="turista">{t('admin.turista')}</option>
@@ -264,11 +265,11 @@ function Usuarios({ token }) {
                   </td>
                   <td style={estilos.td}>
                     <span style={{
-                      background: u.rol === 'admin' ? 'rgba(204,255,0,0.2)' : u.rol === 'comerciante_premium' ? 'rgba(255,200,0,0.2)' : 'rgba(255,255,255,0.1)',
-                      color: u.rol === 'admin' ? '#ccff00' : u.rol === 'comerciante_premium' ? '#ffc800' : '#dce8e3',
+                      background: u.rol === 'admin' ? 'rgba(204,255,0,0.2)' : u.rol === 'comerciante_premium' ? 'rgba(255,200,0,0.2)' : u.rol === 'alcaldia' ? 'rgba(0,200,255,0.2)' : 'rgba(255,255,255,0.1)',
+                      color: u.rol === 'admin' ? '#ccff00' : u.rol === 'comerciante_premium' ? '#ffc800' : u.rol === 'alcaldia' ? '#49c7ff' : '#dce8e3',
                       padding: '3px 10px', borderRadius: '999px', fontSize: '12px',
                     }}>
-                      {u.rol === 'comerciante_premium' ? t('admin.comerciantePremium') : u.rol}
+                      {u.rol === 'comerciante_premium' ? t('admin.comerciantePremium') : u.rol === 'alcaldia' ? t('admin.alcaldia') : u.rol}
                     </span>
                   </td>
                   <td style={estilos.td}>{u.total_locales}</td>
@@ -282,6 +283,7 @@ function Usuarios({ token }) {
                     >
                       <option value="comerciante">{t('admin.comerciante')}</option>
                       <option value="comerciante_premium">{t('admin.comerciantePremium')}</option>
+                      <option value="alcaldia">{t('admin.alcaldia')}</option>
                       <option value="turista">{t('admin.turista')}</option>
                       <option value="admin">Admin</option>
                     </select>

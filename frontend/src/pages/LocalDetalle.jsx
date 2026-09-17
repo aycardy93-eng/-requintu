@@ -592,7 +592,17 @@ if (!res.ok) {
         </form>
       )}
 
-      <h1 style={{ margin: '15px 0 5px 0' }}>{local.nombre}</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', margin: '15px 0 5px 0' }}>
+        <h1 style={{ margin: 0 }}>{local.nombre}</h1>
+        {(local.destacado === 1 || local.destacado === true) && (
+          <span style={{
+            background: 'rgba(0,200,255,0.2)', color: '#49c7ff',
+            padding: '3px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold',
+          }}>
+            {t('localDetalle.oficial')}
+          </span>
+        )}
+      </div>
       <p style={{ color: '#a9c9bb', margin: '0 0 15px 0' }}>
         {local.categoria || t('localDetalle.sinCategoria')} · {local.municipio || t('localDetalle.sinMunicipio')}
       </p>

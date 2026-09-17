@@ -101,7 +101,7 @@ export default function Locales() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{t('locales.titulo')}</h1>
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            {usuario?.rol === 'comerciante' && misLocales.length > 0 ? (
+            {['comerciante', 'alcaldia'].includes(usuario?.rol) && misLocales.length > 0 ? (
               <Link to={`/local/${misLocales[0].id_local}`} style={{
                 backgroundColor: '#ccff00', color: '#12283d', textDecoration: 'none',
                 fontWeight: 'bold', padding: '8px 14px', borderRadius: '6px',
@@ -242,7 +242,17 @@ export default function Locales() {
                   )}
                 </div>
                 <div style={{ padding: '15px' }}>
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: '#ffffff' }}>{local.nombre}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: '#ffffff' }}>{local.nombre}</h3>
+                    {local.destacado === 1 || local.destacado === true ? (
+                      <span style={{
+                        background: 'rgba(0,200,255,0.2)', color: '#49c7ff',
+                        padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 'bold',
+                      }}>
+                        {t('locales.oficial')}
+                      </span>
+                    ) : null}
+                  </div>
                   <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#dce8e3' }}>{local.descripcion}</p>
                   <p style={{ margin: '0 0 5px 0', fontSize: '13px', color: '#a9c9bb' }}>
                     {local.categoria_nombre}
