@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import FondoPagina from '../components/FondoPagina';
 import BACKEND_ORIGIN, { API_URL } from '../config';
 
@@ -12,9 +13,11 @@ const resolverImagenUrl = (url) => {
 
 export default function Locales() {
   const { t } = useTranslation();
+  const { isAuthenticated, usuario, token } = useAuth();
   const [locales, setLocales] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [municipios, setMunicipios] = useState([]);
+  const [misLocales, setMisLocales] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -61,6 +64,20 @@ export default function Locales() {
       });
   }, [searchTerm, selectedCategory, selectedDepartment, selectedMunicipality, t]);
 
+  // Locales propios del usuario (para comerciantes: mostrar su local en vez de "Crear local")
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMisLocales([]);
+      return;
+    }
+    fetch(`${API_URL}/mis-locales`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((res) => res.json())
+      .then((data) => setMisLocales(data.locales || []))
+      .catch(() => setMisLocales([]));
+  }, [isAuthenticated, token]);
+
   // Departamentos únicos, derivados de la lista de municipios
   const departamentos = [...new Set(municipios.map((m) => m.departamento).filter(Boolean))].sort();
 
@@ -84,13 +101,23 @@ export default function Locales() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{t('locales.titulo')}</h1>
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <Link to="/crear-local" style={{
-              backgroundColor: '#ccff00', color: '#12283d', textDecoration: 'none',
-              fontWeight: 'bold', padding: '8px 14px', borderRadius: '6px',
-              transition: 'transform 0.12s ease, background-color 0.15s ease',
-            }}>
-              + {t('locales.crearLocal')}
-            </Link>
+            {usuario?.rol === 'comerciante' && misLocales.length > 0 ? (
+              <Link to={`/local/${misLocales[0].id_local}`} style={{
+                backgroundColor: '#ccff00', color: '#12283d', textDecoration: 'none',
+                fontWeight: 'bold', padding: '8px 14px', borderRadius: '6px',
+                transition: 'transform 0.12s ease, background-color 0.15s ease',
+              }}>
+                {t('locales.tuLocal')}
+              </Link>
+            ) : (
+              <Link to="/crear-local" style={{
+                backgroundColor: '#ccff00', color: '#12283d', textDecoration: 'none',
+                fontWeight: 'bold', padding: '8px 14px', borderRadius: '6px',
+                transition: 'transform 0.12s ease, background-color 0.15s ease',
+              }}>
+                + {t('locales.crearLocal')}
+              </Link>
+            )}
             <Link to="/" style={{ color: '#ccff00', textDecoration: 'none', fontWeight: '500' }}>
               ← {t('common.volver')}
             </Link>

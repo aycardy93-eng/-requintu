@@ -13,6 +13,7 @@ let base = '';
 let server;
 const emailsTest = [];
 const publicacionesTest = [];
+const localesTest = [];
 
 const registroUnico = () => {
   const email = `test-${Date.now()}-${Math.round(Math.random() * 1e6)}@test.requintu`;
@@ -32,6 +33,9 @@ after(async () => {
   server.close();
   if (publicacionesTest.length > 0) {
     await pool.query('DELETE FROM publicaciones WHERE id IN (?)', [publicacionesTest]);
+  }
+  if (localesTest.length > 0) {
+    await pool.query('DELETE FROM locales WHERE id_local IN (?)', [localesTest]);
   }
   if (emailsTest.length > 0) {
     await pool.query('DELETE FROM usuarios WHERE email IN (?)', [emailsTest]);
@@ -136,6 +140,32 @@ test('comerciante no puede crear publicaciones', async () => {
     body: JSON.stringify({ contenido: '[test] comerciante bloqueado' })
   });
   assert.equal(res.status, 403);
+});
+
+test('comerciante solo puede crear un local', async () => {
+  const comerciante = await registrarUsuario({ rol: 'comerciante' });
+  const { token } = await (await login(comerciante.email, comerciante.password)).json();
+
+  const crear = (nombre, direccion) => fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre, descripcion: 'local de prueba automatizada', direccion })
+  });
+
+  const primero = await crear('Local unico de prueba', 'Calle prueba 123');
+  assert.equal(primero.status, 201);
+  const { id } = await primero.json();
+  localesTest.push(id);
+
+  const segundo = await crear('Segundo local de prueba', 'Otra calle 456');
+  assert.equal(segundo.status, 403);
+
+  const misLocales = await fetch(`${base}/api/mis-locales`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  assert.equal(misLocales.status, 200);
+  const mis = await misLocales.json();
+  assert.equal(mis.locales.length, 1);
 });
 
 test('ciclo completo de publicacion: crear y eliminar', async () => {

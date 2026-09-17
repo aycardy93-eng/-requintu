@@ -690,6 +690,16 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), si
   try {
     const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
 
+    if (req.user.rol === 'comerciante') {
+      const [yaTiene] = await pool.query(
+        'SELECT id_local FROM locales WHERE id_usuario = ? LIMIT 1',
+        [req.user.id]
+      );
+      if (yaTiene.length > 0) {
+        return res.status(403).json({ error: 'Un comerciante solo puede registrar un local.' });
+      }
+    }
+
     if (id_municipio) {
       const [duplicados] = await pool.query(
         'SELECT id_local FROM locales WHERE LOWER(nombre) = LOWER(?) AND id_municipio = ? LIMIT 1',
@@ -708,6 +718,19 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), si
   } catch (err) {
     console.error('Error al crear el local:', err.message);
     res.status(500).json({ error: 'Error al crear el local' });
+  }
+});
+
+app.get('/api/mis-locales', authMiddleware, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id_local, nombre, direccion, imagen_url FROM locales WHERE id_usuario = ? ORDER BY id_local ASC LIMIT 100',
+      [req.user.id]
+    );
+    res.json({ locales: rows });
+  } catch (err) {
+    console.error('Error al obtener los locales del usuario:', err.message);
+    res.status(500).json({ error: 'Error al obtener los locales del usuario' });
   }
 });
 

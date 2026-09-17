@@ -6,12 +6,13 @@ import FondoPagina from '../components/FondoPagina';
 import { API_URL } from '../config';
 
 function CrearLocal() {
-  const { token } = useAuth();
+  const { token, usuario } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [categorias, setCategorias] = useState([]);
   const [municipios, setMunicipios] = useState([]);
+  const [yaTieneLocal, setYaTieneLocal] = useState(false);
 
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -40,6 +41,17 @@ function CrearLocal() {
       .then((data) => setMunicipios(Array.isArray(data) ? data : []))
       .catch(() => setMunicipios([]));
   }, []);
+
+  // Si es comerciante, revisar si ya registró su único local
+  useEffect(() => {
+    if (usuario?.rol !== 'comerciante') return;
+    fetch(`${API_URL}/mis-locales`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((res) => res.json())
+      .then((data) => setYaTieneLocal((data.locales || []).length > 0))
+      .catch(() => setYaTieneLocal(false));
+  }, [usuario, token]);
 
   // Departamentos únicos, derivados de la lista de municipios
   const departamentos = [...new Set(municipios.map((m) => m.departamento).filter(Boolean))].sort();
@@ -156,6 +168,21 @@ function CrearLocal() {
             <p style={{ color: '#a9f0b4', background: 'rgba(169, 240, 180, 0.12)', padding: '8px', borderRadius: '6px' }}>{exito}</p>
           )}
 
+          {yaTieneLocal ? (
+            <div>
+              <p style={{ color: '#e2f3ff', fontSize: '16px' }}>{t('crearLocal.yaTienesLocal')}</p>
+              <button
+                onClick={() => navigate('/locales')}
+                style={{
+                  backgroundColor: '#ccff00', color: '#12283d', border: 'none',
+                  padding: '10px 16px', borderRadius: '6px', cursor: 'pointer',
+                  fontWeight: 'bold',
+                }}
+              >
+                {t('common.volver')}
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '15px' }}>
               <label>{t('crearLocal.nombre')}:</label>
@@ -300,6 +327,7 @@ function CrearLocal() {
               {cargando ? t('crearLocal.creando') : t('crearLocal.crearLocal')}
             </button>
           </form>
+          )}
         </div>
       </div>
     </FondoPagina>
