@@ -71,9 +71,21 @@ function LocalDetalle() {
   const [municipiosEdit, setMunicipiosEdit] = useState([]);
   const [guardandoEdit, setGuardandoEdit] = useState(false);
   const [errorEdit, setErrorEdit] = useState('');
-  const [imagenEditFile, setImagenEditFile] = useState(null);
+  const [nuevasFotosEdit, setNuevasFotosEdit] = useState([]);
   const [confirmacion, setConfirmacion] = useState(null);
   const [aviso, setAviso] = useState('');
+  const [imagenActiva, setImagenActiva] = useState(0);
+
+  const galeriaLocal = () => {
+    if (Array.isArray(local?.imagenes) && local.imagenes.length > 0) return local.imagenes;
+    if (local?.imagen_url) return [local.imagen_url];
+    return [];
+  };
+
+  useEffect(() => {
+    setImagenActiva(0);
+    setNuevasFotosEdit([]);
+  }, [id]);
 
   const cargarDatos = () => {
     setCargando(true);
@@ -138,7 +150,7 @@ function LocalDetalle() {
       id_categoria: local.id_categoria || '',
       id_municipio: local.id_municipio || '',
     });
-    setImagenEditFile(null);
+    setNuevasFotosEdit([]);
     setErrorEdit('');
     try {
       const [catRes, munRes] = await Promise.all([
@@ -156,35 +168,42 @@ function LocalDetalle() {
     setGuardandoEdit(true);
     setErrorEdit('');
     try {
-      let imagen_url = formEdit.imagen_url || null;
-      if (imagenEditFile) {
-        const fd = new FormData();
-        fd.append('imagen', imagenEditFile);
-        const upRes = await fetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: fd,
-        });
-        const upData = await upRes.json();
-        if (!upRes.ok) throw new Error(upData.error || t('localDetalle.errorSubirImagen'));
-        imagen_url = upData.url;
+      const bodyEdit = {
+        nombre: formEdit.nombre,
+        descripcion: formEdit.descripcion || null,
+        direccion: formEdit.direccion,
+        telefono: formEdit.telefono || null,
+        id_categoria: formEdit.id_categoria || null,
+        id_municipio: formEdit.id_municipio || null,
+      };
+
+      if (nuevasFotosEdit.length > 0) {
+        const nuevosUrls = [];
+        for (const archivo of nuevasFotosEdit.slice(0, 6)) {
+          const fd = new FormData();
+          fd.append('imagen', archivo);
+          const upRes = await fetch(`${API_URL}/upload`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: fd,
+          });
+          const upData = await upRes.json();
+          if (!upRes.ok) throw new Error(upData.error || t('localDetalle.errorSubirImagen'));
+          nuevosUrls.push(upData.url);
+        }
+        const baseGaleria = galeriaLocal();
+        bodyEdit.imagenes_url = [...baseGaleria, ...nuevosUrls];
       }
+
       const res = await fetch(`${API_URL}/locales/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          nombre: formEdit.nombre,
-          descripcion: formEdit.descripcion || null,
-          direccion: formEdit.direccion,
-          telefono: formEdit.telefono || null,
-          imagen_url,
-          id_categoria: formEdit.id_categoria || null,
-          id_municipio: formEdit.id_municipio || null,
-        }),
+        body: JSON.stringify(bodyEdit),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('localDetalle.errorActualizar'));
       setEditando(false);
+      setNuevasFotosEdit([]);
       cargarDatos();
     } catch (err) {
       setErrorEdit(err.message);
@@ -409,18 +428,56 @@ if (!res.ok) {
 
   return (
     <FondoPagina>
-    {local.imagen_url ? (
-      <img
-        src={resolverImagenUrl(local.imagen_url)}
-        alt={local.nombre}
-        style={{
-          width: '100%',
-          height: '320px',
-          objectFit: 'cover',
-          objectPosition: 'center',
-          display: 'block',
-        }}
-      />
+    {galeriaLocal().length > 0 ? (
+      <div style={{ position: 'relative', width: '100%', height: '320px', background: 'rgba(0,0,0,0.35)' }}>
+        <img
+          src={resolverImagenUrl(galeriaLocal()[imagenActiva] ?? galeriaLocal()[0])}
+          alt={local.nombre}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
+            display: 'block',
+          }}
+        />
+        {galeriaLocal().length > 1 && (
+          <>
+            <button
+              onClick={() => setImagenActiva((imagenActiva + galeriaLocal().length - 1) % galeriaLocal().length)}
+              aria-label={t('localDetalle.anterior')}
+              style={{
+                position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+                background: 'rgba(0,0,0,0.55)', color: 'white', border: 'none',
+                borderRadius: '50%', width: '38px', height: '38px', fontSize: '18px', cursor: 'pointer',
+              }}
+            >‹</button>
+            <button
+              onClick={() => setImagenActiva((imagenActiva + 1) % galeriaLocal().length)}
+              aria-label={t('localDetalle.siguiente')}
+              style={{
+                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                background: 'rgba(0,0,0,0.55)', color: 'white', border: 'none',
+                borderRadius: '50%', width: '38px', height: '38px', fontSize: '18px', cursor: 'pointer',
+              }}
+            >›</button>
+            <div style={{ position: 'absolute', bottom: '10px', left: '0', right: '0', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+              {galeriaLocal().map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setImagenActiva(idx)}
+                  aria-label={t('localDetalle.imagen', { numero: idx + 1 })}
+                  style={{
+                    width: '10px', height: '10px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    background: idx === imagenActiva ? '#ccff00' : 'rgba(255,255,255,0.6)',
+                    padding: 0,
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     ) : (
       <div
         style={{
@@ -514,9 +571,15 @@ if (!res.ok) {
             </select>
           </div>
           <div style={{ marginBottom: '12px' }}>
-            <label>{t('localDetalle.nuevaImagen')}:</label>
-            <input type="file" accept=".jpg,.jpeg,.png,.webp" onChange={e => setImagenEditFile(e.target.files[0])} style={{ color: 'white' }} />
-            {imagenEditFile && <p style={{ color: '#ccff00', fontSize: '12px' }}>{imagenEditFile.name}</p>}
+            <label>{t('localDetalle.agregarFotos')}:</label>
+            <input type="file" accept=".jpg,.jpeg,.png,.webp" multiple onChange={(e) => setNuevasFotosEdit(Array.from(e.target.files))} style={{ color: 'white' }} />
+            {nuevasFotosEdit.length > 0 && (
+              <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px', fontSize: '12px', color: '#ccff00' }}>
+                {nuevasFotosEdit.map((f) => (
+                  <li key={f.name}>{f.name}</li>
+                ))}
+              </ul>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" disabled={guardandoEdit} style={{ padding: '10px 18px', background: '#ccff00', color: '#12283d', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}>

@@ -21,7 +21,7 @@ function CrearLocal() {
   const [idCategoria, setIdCategoria] = useState('');
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState('');
   const [idMunicipio, setIdMunicipio] = useState('');
-  const [imagenFile, setImagenFile] = useState(null);
+  const [imagenesFiles, setImagenesFiles] = useState([]);
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
@@ -91,11 +91,12 @@ function CrearLocal() {
     setCargando(true);
 
     try {
-      let imagen_url = null;
-
-      if (imagenFile) {
+      // 1. Subir las imágenes (máx. 6) y recolectar sus URLs
+      const imagenes_url = [];
+      const maxImagenes = 6;
+      for (let i = 0; i < Math.min(imagenesFiles.length, maxImagenes); i++) {
         const formData = new FormData();
-        formData.append('imagen', imagenFile);
+        formData.append('imagen', imagenesFiles[i]);
         const uploadRes = await fetch(`${API_URL}/upload`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
@@ -103,10 +104,10 @@ function CrearLocal() {
         });
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok) throw new Error(uploadData.error || t('crearLocal.errorSubirImagen'));
-        imagen_url = uploadData.url;
+        imagenes_url.push(uploadData.url);
       }
 
-      // 2. Crear el local con (o sin) imagen_url
+      // 2. Crear el local con sus imágenes (imagen_url queda como portada)
      const localRes = await fetch(`${API_URL}/locales`, {
         method: 'POST',
         headers: {
@@ -118,7 +119,7 @@ function CrearLocal() {
           descripcion,
           direccion,
           telefono,
-          imagen_url,
+          imagenes_url: imagenes_url.length > 0 ? imagenes_url : undefined,
           id_categoria: idCategoria || null,
           id_municipio: idMunicipio || null,
         }),
@@ -305,10 +306,17 @@ function CrearLocal() {
               <input
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
-                onChange={(e) => setImagenFile(e.target.files[0])}
+                multiple
+                onChange={(e) => setImagenesFiles(Array.from(e.target.files))}
                 style={{ display: 'block', marginTop: '5px', color: 'white' }}
               />
-              {imagenFile && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#ccff00' }}>{imagenFile.name}</p>}
+              {imagenesFiles.length > 0 && (
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px', fontSize: '12px', color: '#ccff00' }}>
+                  {imagenesFiles.map((f) => (
+                    <li key={f.name}>{f.name}</li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <button

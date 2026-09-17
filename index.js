@@ -243,6 +243,43 @@ export async function asegurarTablas() {
         REFERENCES usuarios(id_usuario) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // Ampliar el enum de roles con 'comerciante_premium' (asignable solo por el admin)
+  const [colsRol] = await pool.query(
+    `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'rol'`
+  );
+  const tipoRol = colsRol[0]?.COLUMN_TYPE || '';
+  if (tipoRol && !tipoRol.includes('comerciante_premium')) {
+    await pool.query(
+      `ALTER TABLE usuarios MODIFY COLUMN rol ENUM('admin','comerciante','comerciante_premium','turista') NOT NULL DEFAULT 'turista'`
+    );
+  }
+
+  // Galería de un local (varias imágenes)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS locales_imagenes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_local INT NOT NULL,
+      url TEXT NOT NULL,
+      orden INT NOT NULL DEFAULT 0,
+      creada_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_locales_imagenes_local (id_local),
+      CONSTRAINT fk_locales_imagenes_local FOREIGN KEY (id_local)
+        REFERENCES locales(id_local) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+}
+
+async function guardarImagenesLocal(idLocal, urls) {
+  if (!Array.isArray(urls)) return;
+  const limpias = urls.filter((u) => typeof u === 'string' && u.trim()).map((u) => u.trim());
+  for (let i = 0; i < limpias.length; i++) {
+    await pool.query(
+      'INSERT INTO locales_imagenes (id_local, url, orden) VALUES (?, ?, ?)',
+      [idLocal, limpias[i], i]
+    );
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -678,25 +715,31 @@ app.get('/api/locales', async (req, res) => {
   }
 });
 
-app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), sinGroserias(['nombre', 'descripcion', 'direccion']), validar([
+app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_premium', 'admin']), sinGroserias(['nombre', 'descripcion', 'direccion']), validar([
   body('nombre').trim().isLength({ min: 2, max: 100 }).withMessage('El nombre del local debe tener entre 2 y 100 caracteres'),
   body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),
   body('direccion').trim().notEmpty().withMessage('La dirección es obligatoria'),
   body('telefono').optional({ values: 'falsy' }).trim().isLength({ max: 20 }).withMessage('El teléfono no puede exceder 20 caracteres'),
   body('imagen_url').optional({ values: 'falsy' }).trim(),
+  body('imagenes_url').optional().isArray().withMessage('Las imágenes deben ser un arreglo'),
   body('id_categoria').optional({ values: 'null' }).isInt().withMessage('Categoría inválida'),
   body('id_municipio').optional({ values: 'null' }).isInt().withMessage('Municipio inválido')
 ]), async (req, res) => {
   try {
-    const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
+    const { nombre, descripcion, direccion, telefono, imagen_url, imagenes_url, id_categoria, id_municipio } = req.body;
 
-    if (req.user.rol === 'comerciante') {
-      const [yaTiene] = await pool.query(
-        'SELECT id_local FROM locales WHERE id_usuario = ? LIMIT 1',
+    const limiteLocales = { comerciante: 1, comerciante_premium: 5 }[req.user.rol];
+    if (limiteLocales !== undefined) {
+      const [cuenta] = await pool.query(
+        'SELECT COUNT(*) AS total FROM locales WHERE id_usuario = ?',
         [req.user.id]
       );
-      if (yaTiene.length > 0) {
-        return res.status(403).json({ error: 'Un comerciante solo puede registrar un local.' });
+      if (cuenta[0].total >= limiteLocales) {
+        return res.status(403).json({
+          error: req.user.rol === 'comerciante_premium'
+            ? 'El plan premium de comerciante permite hasta 5 locales.'
+            : 'Un comerciante solo puede registrar un local.'
+        });
       }
     }
 
@@ -710,10 +753,13 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'admin']), si
       }
     }
 
+    const cover = imagen_url || (Array.isArray(imagenes_url) ? imagenes_url[0] : null) || null;
+
     const [result] = await pool.query(
       'INSERT INTO locales (nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio, id_usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [nombre, descripcion, direccion, telefono || null, imagen_url || null, id_categoria, id_municipio, req.user.id]
+      [nombre, descripcion, direccion, telefono || null, cover, id_categoria, id_municipio, req.user.id]
     );
+    await guardarImagenesLocal(result.insertId, imagenes_url);
     res.status(201).json({ mensaje: 'Local creado con éxito', id: result.insertId });
   } catch (err) {
     console.error('Error al crear el local:', err.message);
@@ -748,6 +794,11 @@ app.get('/api/locales/:id', async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Local no encontrado' });
     }
+    const [imagenes] = await pool.query(
+      'SELECT url FROM locales_imagenes WHERE id_local = ? ORDER BY orden ASC, id ASC',
+      [id]
+    );
+    rows[0].imagenes = imagenes.map((img) => img.url);
     res.json({ local: rows[0] });
   } catch (err) {
     console.error('Error al obtener el local:', err.message);
@@ -761,6 +812,7 @@ app.put('/api/locales/:id', authMiddleware, sinGroserias(['nombre', 'descripcion
   body('direccion').optional().trim(),
   body('telefono').optional().trim().isLength({ max: 20 }),
   body('imagen_url').optional({ values: 'falsy' }).trim(),
+  body('imagenes_url').optional().isArray().withMessage('Las imágenes deben ser un arreglo'),
   body('id_categoria').optional({ values: 'null' }).isInt(),
   body('id_municipio').optional({ values: 'null' }).isInt()
 ]), async (req, res) => {
@@ -774,7 +826,7 @@ app.put('/api/locales/:id', authMiddleware, sinGroserias(['nombre', 'descripcion
 
     const campos = [];
     const params = [];
-    const { nombre, descripcion, direccion, telefono, imagen_url, id_categoria, id_municipio } = req.body;
+    const { nombre, descripcion, direccion, telefono, imagen_url, imagenes_url, id_categoria, id_municipio } = req.body;
 
     const nombreFinal = nombre !== undefined ? nombre : rows[0].nombre;
     const municipioFinal = id_municipio !== undefined ? id_municipio : rows[0].id_municipio;
@@ -796,6 +848,19 @@ app.put('/api/locales/:id', authMiddleware, sinGroserias(['nombre', 'descripcion
     if (imagen_url !== undefined) { campos.push('imagen_url = ?'); params.push(imagen_url || null); }
     if (id_categoria !== undefined) { campos.push('id_categoria = ?'); params.push(id_categoria || null); }
     if (id_municipio !== undefined) { campos.push('id_municipio = ?'); params.push(id_municipio || null); }
+
+    if (Array.isArray(imagenes_url)) {
+      await pool.query('DELETE FROM locales_imagenes WHERE id_local = ?', [id]);
+      await guardarImagenesLocal(id, imagenes_url);
+      const compatida = Array.isArray(imagenes_url) ? imagenes_url.filter((u) => u && u.trim()) : [];
+      if (imagen_url === undefined && compatida.length > 0) {
+        campos.push('imagen_url = ?');
+        params.push(compatida[0].trim());
+      } else if (imagen_url === undefined && compatida.length === 0) {
+        campos.push('imagen_url = ?');
+        params.push(null);
+      }
+    }
 
     if (campos.length === 0) return res.status(400).json({ error: 'No hay campos para actualizar' });
 
@@ -1208,7 +1273,7 @@ app.get('/api/admin/usuarios', authMiddleware, checkRole(['admin']), async (req,
       where.push('(u.nombre LIKE ? OR u.email LIKE ?)');
       params.push(`%${q.trim()}%`, `%${q.trim()}%`);
     }
-    if (rol && ['admin', 'comerciante', 'turista'].includes(rol)) {
+    if (rol && ['admin', 'comerciante', 'comerciante_premium', 'turista'].includes(rol)) {
       where.push('u.rol = ?');
       params.push(rol);
     }
@@ -1239,7 +1304,7 @@ app.get('/api/admin/usuarios', authMiddleware, checkRole(['admin']), async (req,
 });
 
 app.put('/api/admin/usuarios/:id/rol', authMiddleware, checkRole(['admin']), validar([
-  body('rol').isIn(['admin', 'comerciante', 'turista']).withMessage('Rol inválido')
+  body('rol').isIn(['admin', 'comerciante', 'comerciante_premium', 'turista']).withMessage('Rol inválido')
 ]), async (req, res) => {
   try {
     const { id } = req.params;

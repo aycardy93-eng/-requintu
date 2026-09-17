@@ -48,6 +48,18 @@ CREATE TABLE `locales` (
   CONSTRAINT `locales_ibfk_3` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+DROP TABLE IF EXISTS `locales_imagenes`;
+CREATE TABLE `locales_imagenes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_local` int NOT NULL,
+  `url` text NOT NULL,
+  `orden` int NOT NULL DEFAULT '0',
+  `creada_en` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_locales_imagenes_local` (`id_local`),
+  CONSTRAINT `fk_locales_imagenes_local` FOREIGN KEY (`id_local`) REFERENCES `locales` (`id_local`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 DROP TABLE IF EXISTS `municipios`;
 CREATE TABLE `municipios` (
   `id_municipio` int NOT NULL AUTO_INCREMENT,
@@ -135,7 +147,7 @@ CREATE TABLE `usuarios` (
   `nombre` varchar(120) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
-  `rol` enum('admin','comerciante','turista') DEFAULT 'turista',
+  `rol` enum('admin','comerciante','comerciante_premium','turista') DEFAULT 'turista',
   `fecha_registro` datetime DEFAULT CURRENT_TIMESTAMP,
   `reset_token` varchar(10) DEFAULT NULL,
   `reset_token_expira` datetime DEFAULT NULL,

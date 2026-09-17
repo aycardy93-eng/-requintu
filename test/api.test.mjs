@@ -168,6 +168,62 @@ test('comerciante solo puede crear un local', async () => {
   assert.equal(mis.locales.length, 1);
 });
 
+test('rol comerciante_premium no puede elegirse en el registro', async () => {
+  const credenciales = await registrarUsuario({ rol: 'comerciante_premium' });
+  const res = await login(credenciales.email, credenciales.password);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.user.rol, 'turista');
+});
+
+test('comerciante_premium puede crear hasta 5 locales', async () => {
+  const usuario = await registrarUsuario();
+  await pool.query("UPDATE usuarios SET rol = 'comerciante_premium' WHERE email = ?", [usuario.email]);
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+
+  const crear = (nombre, direccion) => fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre, descripcion: 'local premium de prueba automatizada', direccion })
+  });
+
+  for (let i = 1; i <= 5; i++) {
+    const r = await crear(`Local premium ${i} de prueba`, `Direccion premium ${i}`);
+    assert.equal(r.status, 201);
+    const { id } = await r.json();
+    localesTest.push(id);
+  }
+
+  const sexto = await crear('Local premium extra de prueba', 'Direccion extra');
+  assert.equal(sexto.status, 403);
+});
+
+test('local creado con varias imagenes devuelve la galeria', async () => {
+  const usuario = await registrarUsuario();
+  await pool.query("UPDATE usuarios SET rol = 'comerciante_premium' WHERE email = ?", [usuario.email]);
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+
+  const crear = await fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      nombre: 'Local con galeria de prueba',
+      descripcion: 'local con varias fotos',
+      direccion: 'Calle galeria 1',
+      imagenes_url: ['/uploads/g1.jpg', '/uploads/g2.jpg', '/uploads/g3.jpg']
+    })
+  });
+  assert.equal(crear.status, 201);
+  const { id } = await crear.json();
+  localesTest.push(id);
+
+  const detalle = await fetch(`${base}/api/locales/${id}`);
+  assert.equal(detalle.status, 200);
+  const { local } = await detalle.json();
+  assert.equal(local.imagen_url, '/uploads/g1.jpg');
+  assert.deepEqual(local.imagenes, ['/uploads/g1.jpg', '/uploads/g2.jpg', '/uploads/g3.jpg']);
+});
+
 test('ciclo completo de publicacion: crear y eliminar', async () => {
   const usuario = await registrarUsuario();
   const { token } = await (await login(usuario.email, usuario.password)).json();

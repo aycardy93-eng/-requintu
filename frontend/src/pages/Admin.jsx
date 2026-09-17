@@ -103,7 +103,7 @@ function Resumen({ stats }) {
     { label: t('admin.promociones'), valor: stats?.totalPlanes ?? '-', icono: '🎉' },
   ];
 
-  const rolLabels = { admin: t('admin.administradores'), comerciante: t('admin.comerciantes'), turista: t('admin.turistas') };
+  const rolLabels = { admin: t('admin.administradores'), comerciante: t('admin.comerciantes'), comerciante_premium: t('admin.comerciantesPremium'), turista: t('admin.turistas') };
 
   return (
     <div>
@@ -172,9 +172,8 @@ function Usuarios({ token }) {
     return () => clearTimeout(temporizador);
   }, [cargar]);
 
-  const cambiarRol = async (id, rolActual) => {
+  const cambiarRol = async (id, nuevoRol) => {
     if (!window.confirm(t('admin.confirmarCambiarRol'))) return;
-    const nuevoRol = rolActual === 'admin' ? 'comerciante' : 'admin';
     setCambiando(id);
     setError('');
     try {
@@ -231,6 +230,7 @@ function Usuarios({ token }) {
           <option value="">{t('admin.todosRoles')}</option>
           <option value="admin">Admin</option>
           <option value="comerciante">{t('admin.comerciante')}</option>
+          <option value="comerciante_premium">{t('admin.comerciantePremium')}</option>
           <option value="turista">{t('admin.turista')}</option>
         </select>
       </div>
@@ -264,23 +264,27 @@ function Usuarios({ token }) {
                   </td>
                   <td style={estilos.td}>
                     <span style={{
-                      background: u.rol === 'admin' ? 'rgba(204,255,0,0.2)' : 'rgba(255,255,255,0.1)',
-                      color: u.rol === 'admin' ? '#ccff00' : '#dce8e3',
+                      background: u.rol === 'admin' ? 'rgba(204,255,0,0.2)' : u.rol === 'comerciante_premium' ? 'rgba(255,200,0,0.2)' : 'rgba(255,255,255,0.1)',
+                      color: u.rol === 'admin' ? '#ccff00' : u.rol === 'comerciante_premium' ? '#ffc800' : '#dce8e3',
                       padding: '3px 10px', borderRadius: '999px', fontSize: '12px',
                     }}>
-                      {u.rol}
+                      {u.rol === 'comerciante_premium' ? t('admin.comerciantePremium') : u.rol}
                     </span>
                   </td>
                   <td style={estilos.td}>{u.total_locales}</td>
                   <td style={estilos.td}>{u.total_publicaciones}</td>
                   <td style={estilos.td}>
-                    <button
-                      onClick={() => cambiarRol(u.id_usuario, u.rol)}
+                    <select
+                      value={u.rol}
+                      onChange={(e) => cambiarRol(u.id_usuario, e.target.value)}
                       disabled={cambiando === u.id_usuario}
-                      style={{ ...estilos.boton, background: '#2a6a94', color: 'white', marginRight: '6px' }}
+                      style={{ ...estilos.boton, background: '#2a6a94', color: 'white', marginRight: '6px', padding: '6px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
                     >
-                      {cambiando === u.id_usuario ? '...' : u.rol === 'admin' ? t('admin.quitarAdmin') : t('admin.hacerAdmin')}
-                    </button>
+                      <option value="comerciante">{t('admin.comerciante')}</option>
+                      <option value="comerciante_premium">{t('admin.comerciantePremium')}</option>
+                      <option value="turista">{t('admin.turista')}</option>
+                      <option value="admin">Admin</option>
+                    </select>
                     <button
                       onClick={() => eliminar(u)}
                       disabled={cambiando === u.id_usuario}
