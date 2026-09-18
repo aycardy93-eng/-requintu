@@ -21,6 +21,21 @@ test('registro, inicio de sesión, cierre de sesión y limpieza del usuario', as
   await borrarUsuarioApi(email, password);
 });
 
+test('la sesión persiste al recargar la página (cookie httpOnly)', async ({ page }) => {
+  const email = emailUnico();
+  const password = 'ClaveSegura123';
+
+  await registrarApi(page, { nombre: 'Persistencia E2E', email, password });
+  await loginUI(page, email, password);
+  await expect(page.getByText(/Hola, Persistencia E2E/)).toBeVisible();
+
+  // Recarga completa: el token en memoria se pierde y debe restaurarse con la cookie
+  await page.goto('/');
+  await expect(page.getByText(/Hola, Persistencia E2E/)).toBeVisible();
+
+  await borrarUsuarioApi(email, password);
+});
+
 test('el mapa aparece solo con sesión iniciada', async ({ page }) => {
   const email = emailUnico();
   const password = 'ClaveSegura123';
