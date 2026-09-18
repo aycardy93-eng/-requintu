@@ -871,13 +871,11 @@ app.post('/api/chat', validar([
     }
 
     let query = `
-      SELECT l.*, c.nombre AS categoria_nombre, m.nombre AS municipio_nombre, m.departamento,
-        COALESCE(AVG(r.puntuacion), 0) AS calificacion_promedio,
-        COUNT(r.id_resena) AS total_calificaciones
+      SELECT l.id_local, l.nombre, l.direccion, l.imagen_url, l.destacado,
+        c.nombre AS categoria_nombre, m.nombre AS municipio_nombre, m.departamento
       FROM locales l
       LEFT JOIN categorias c ON l.id_categoria = c.id_categoria
       LEFT JOIN municipios m ON l.id_municipio = m.id_municipio
-      LEFT JOIN calificaciones r ON l.id_local = r.id_local
       WHERE 1=1`;
     const params = [];
 
@@ -892,13 +890,43 @@ app.post('/api/chat', validar([
       query += ' AND l.id_categoria = ?';
       params.push(categoria.id_categoria);
     }
-    query += ' GROUP BY l.id_local ORDER BY l.destacado DESC, calificacion_promedio DESC, l.id_local ASC LIMIT 5';
+    query += ' ORDER BY l.destacado DESC, l.id_local ASC LIMIT 100';
 
     const [filas] = await pool.query(query, params);
 
+    let finales = filas;
+    if (filas.length > 0) {
+      const ids = filas.map((l) => l.id_local);
+      const [calificaciones] = await pool.query(
+        'SELECT id_local, puntuacion FROM calificaciones WHERE id_local IN (?)',
+        [ids]
+      );
+      const resumenPorLocal = new Map();
+      for (const c of calificaciones) {
+        const actual = resumenPorLocal.get(c.id_local) || { suma: 0, n: 0 };
+        actual.suma += Number(c.puntuacion);
+        actual.n += 1;
+        resumenPorLocal.set(c.id_local, actual);
+      }
+      finales = filas.map((l) => {
+        const r = resumenPorLocal.get(l.id_local) || { suma: 0, n: 0 };
+        return {
+          ...l,
+          calificacion_promedio: r.n ? Math.round((r.suma / r.n) * 10) / 10 : 0,
+          total_calificaciones: r.n,
+        };
+      });
+      finales.sort((a, b) =>
+        Number(b.destacado === true || b.destacado === 1) - Number(a.destacado === true || a.destacado === 1) ||
+        b.calificacion_promedio - a.calificacion_promedio ||
+        a.id_local - b.id_local
+      );
+      finales = finales.slice(0, 5);
+    }
+
     const zona = municipio ? municipio.nombre : departamento ? departamento.departamento : null;
     let respuesta;
-    if (filas.length === 0) {
+    if (finales.length === 0) {
       respuesta = en
         ? (zona ? `I could not find places in ${zona} yet. Try another city!` : 'I could not find places matching your request.')
         : (zona ? `Aún no encontré locales en ${zona}. ¡Prueba con otra ciudad!` : 'No encontré locales que coincidan con tu búsqueda.');
@@ -922,7 +950,7 @@ app.post('/api/chat', validar([
 
     res.json({
       respuesta,
-      locales: filas.map((l) => ({
+      locales: finales.map((l) => ({
         id_local: l.id_local,
         nombre: l.nombre,
         direccion: l.direccion,
