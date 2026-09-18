@@ -40,9 +40,9 @@ El proyecto se enmarca en el programa de formación **Procesamiento de Pruebas d
 
 | Competencia aplicada (área del programa) | Evidencia en REQUINTU |
 |---|---|
-| Interpretación de requisitos y especificaciones funcionales | Definición de historias de usuario: registro e inicio de sesión, publicación de locales, muro, calificaciones, denuncias, panel administrativo. |
-| Diseño de casos de prueba a partir de requisitos | Casos de prueba documentados en el *Informe de Pruebas Requintu v1.3* (más de 30 casos: autenticación, CRUD, denuncias, autorización por roles, seguridad). |
-| Ejecución de pruebas funcionales y registro de resultados | Ejecución manual documentada y **pruebas automatizadas**: 22 casos de prueba de API (Node Test Runner) y 12 pruebas de extremo a extremo (Playwright). |
+| Interpretación de requisitos y especificaciones funcionales | Definición de historias de usuario: registro e inicio de sesión, publicación de locales, muro, calificaciones, denuncias, panel administrativo y roles especiales (comerciante premium, cuenta de alcaldía). |
+| Diseño de casos de prueba a partir de requisitos | Casos de prueba documentados en el *Informe de Pruebas Requintu v1.4* (47 casos: autenticación, CRUD, denuncias, roles premium y alcaldía, autorización por roles, seguridad). |
+| Ejecución de pruebas funcionales y registro de resultados | Ejecución manual documentada y **pruebas automatizadas**: 34 casos de prueba de API (Node Test Runner) y 13 pruebas de extremo a extremo (Playwright). |
 | Aplicación de técnicas de prueba de seguridad | Payloads de **XSS** probados en muro y comentarios (resultado: se procesan como texto inerte); protección con `helmet`, `express-rate-limit`, `express-validator`); validación de archivos e **moderación NSFW** de imágenes. |
 | Automatización de pruebas | Suites `npm test` (API) y `npm run test:e2e` (Playwright sobre Chromium) ejecutadas en el flujo de trabajo del proyecto. |
 | Gestión y reporte de defectos | Bitácoras de avance y corrección de hallazgos (p. ej., limpieza de advertencias del linter, fijación de dependencias para el despliegue). |
@@ -77,7 +77,7 @@ Diseñar, desarrollar y poner en operación una plataforma web para la visibiliz
 
 **Objetivos específicos**
 
-1. Desarrollar el módulo de autenticación y roles (viajero, propietario, administrador) con manejo seguro de contraseñas, sesiones y recuperación de cuenta.
+1. Desarrollar el módulo de autenticación y roles (turista, comerciante, comerciante premium, cuenta de alcaldía y administrador) con manejo seguro de contraseñas, sesiones y recuperación de cuenta.
 2. Implementar el módulo de locales: publicación, edición, georreferenciación en el mapa de Colombia, galería de imágenes y calificaciones/comentarios.
 3. Implementar el muro social de publicaciones con actualización en tiempo real y reglas de contenido seguro.
 4. Implementar el sistema de moderación de imágenes (NSFW) y de denuncias con panel administrativo.
@@ -98,7 +98,7 @@ El turismo interno colombiano crece de forma sostenida; los viajeros consultan p
 |---|---|---|
 | **A) Propietarios de emprendimientos turísticos** | Hospedajes familiares, restaurantes, artesanos, guías locales de municipios de Colombia. | Perfil público verificable, ubicación en el mapa, valoraciones, idioma ES/EN. |
 | **B) Viajeros y turistas** | Personas que planean viajes nacionales o internacionales hacia Colombia. | Descubrir, ubicar y elegir con confianza establecimientos locales. |
-| **C) Administradores del ecosistema** | Secretarías de turismo, juntas, operadores. | Canal ordenado de promoción y control de la oferta local. |
+| **C) Administradores del ecosistema** | Secretarías de turismo, alcaldías (perfil oficial destacado), juntas, operadores. | Canal ordenado de promoción y control de la oferta local. |
 
 ### 5.3 Competencia
 
@@ -115,8 +115,8 @@ Estrategia **freemium** (gratuito durante la Etapa Práctica para generación de
 
 | Plan | Destinatario | Precio estimado | Beneficios |
 |---|---|---|---|
-| **Gratis** | Todos | $0 COP | Publicar local, muro, valoraciones, mapa. |
-| **Destacado Pro** | Propietarios | **$19.900 COP/mes** (estimado) | Posicionamiento prioritario en buscador y mapa, insignia "Destacado", estadísticas básicas de visitas. |
+| **Gratis** | Todos | $0 COP | Publicar un local, muro, valoraciones, mapa. |
+| **Perfil premium** | Comerciantes | **US$2/mes** (≈ $8.000 COP) | Perfil de comerciante premium: hasta 5 locales, varias fotos por local e insignia premium. Se asigna por el administrador en el panel. |
 | **Publicidad directa** | Negocios aliados | **$50.000 COP/mes** (estimado) | Banner en portada segmentado por municipio. |
 
 > Los precios son proyecciones para la fase de comercialización (la validación durante la Etapa Práctica se hace a valor $0).
@@ -184,7 +184,7 @@ Estrategia **freemium** (gratuito durante la Etapa Práctica para generación de
 1. El propietario se registra y crea su local (nombre, categoría, municipio/departamento, ubicación en el mapa de Colombia, fotos y horarios).
 2. El turista busca por nombre, categoría o departamento/municipio y lo ubica geográficamente.
 3. Los visitantes publican en el muro y califican; el sistema modera contenido y denuncias llegan al panel administrativo.
-4. El administrador gestiona usuarios, locales, publicaciones y reportes desde el panel.
+4. El administrador gestiona usuarios, locales, publicaciones y reportes desde el panel, y asigna los roles especiales (comerciante premium y cuenta de alcaldía).
 
 **Insumos y herramientas operativas:**
 - Cuentas gratuitas de despliegue: Vercel, Render (free/calidad), Cloudinary (plan gratuito), base de datos en la nube.
@@ -198,10 +198,10 @@ Estrategia **freemium** (gratuito durante la Etapa Práctica para generación de
 | Nivel | Técnica | Evidencia |
 |---|---|---|
 | Estático | Análisis de código (oxlint) | 0 errores; advertencias preexistentes documentadas |
-| Unitario / API | Node Test Runner (`test/api.test.mjs`) | **22 pruebas automatizadas** de API |
-| End-to-end | Playwright (Chromium, servidor real) | **12 pruebas e2e**: auth, denuncias, inicio, muro, privacidad, seguridad |
-| Funcional manual | Ejecución de casos de prueba | *Informe de Pruebas Requintu v1.3* (>30 casos) |
-| Seguridad | Payloads XSS, límites de tasa, moderación NSFW | Resultados en informe: contenido inerte, cabeceras seguras |
+| Unitario / API | Node Test Runner (`test/api.test.mjs`) | **34 pruebas automatizadas** de API |
+| End-to-end | Playwright (Chromium, servidor real) | **13 pruebas e2e**: auth, sesión persistente, denuncias, inicio, muro, privacidad, seguridad |
+| Funcional manual | Ejecución de casos de prueba | *Informe de Pruebas Requintu v1.4* (47 casos automatizados) |
+| Seguridad | Payloads XSS, SSE autenticado, límites de subidas, allowlist de imágenes, moderación NSFW | Resultados en informe: contenido inerte, cabeceras seguras, cuotas y allowlist verificadas |
 
 Este proceso demuestra la aplicación práctica de las competencias del programa y es una de las **evidencias centrales** del proyecto.
 
@@ -243,18 +243,18 @@ Este proceso demuestra la aplicación práctica de las competencias del programa
 
 ### 7.4 Proyección de ingresos (12 meses — escenario conservador)
 
-| Mes | Locales Pro ($19.900) | Publicidad ($50.000/banner) | Ingreso mensual |
+| Mes | Perfiles premium (US$2 ≈ $8.000) | Publicidad ($50.000/banner) | Ingreso mensual |
 |---|---|---|---|
 | 1–2 | 0 | 0 | $0 |
-| 3 | 3 | 0 | $59.700 |
-| 4 | 5 | 1 | $149.500 |
-| 6 | 15 | 2 | $398.500 |
-| 9 | 25 | 3 | $647.500 |
-| 12 | 35 | 4 | $896.500 |
+| 3 | 3 | 0 | $24.000 |
+| 4 | 5 | 1 | $90.000 |
+| 6 | 15 | 2 | $220.000 |
+| 9 | 25 | 3 | $350.000 |
+| 12 | 35 | 4 | $480.000 |
 
 ### 7.5 Punto de equilibrio
 
-Con costos fijos de **$33.000/mes**, el punto de equilibrio se alcanza con aproximadamente **2 suscriptores Pro** (2 × $19.900 = $39.800) *o* **1 suscriptor Pro + 1 banner** publicitario. Bajo el escenario conservador, esto se lograría entre el **mes 3 y el mes 4** de la fase comercial.
+Con costos fijos de **$33.000/mes**, el punto de equilibrio se alcanza con aproximadamente **5 perfiles premium** (5 × US$2 ≈ $40.000 COP) *o* **1 banner publicitario** ($50.000) desde el inicio de la fase comercial. Bajo el escenario conservador, con los primeros perfiles premium, esto se lograría entre el **mes 3 y el mes 4**.
 
 **Viabilidad.** La estructura de costos es baja y escalable (planes gratuitos del proveedor + crecimiento marginal del gasto), lo que hace el proyecto financieramente viable; el riesgo principal es la **adopción por parte de los municipios**, mitigable con la estrategia de lanzamiento gratuito y aliados institucionales.
 
@@ -274,9 +274,9 @@ Con costos fijos de **$33.000/mes**, el punto de equilibrio se alcanza con aprox
 | Entregable | Formato | Estado |
 |---|---|---|
 | Documento del proyecto productivo | PDF (este documento) | Elaborado |
-| Documentación técnica | `Documentacion_Tecnica_Requintu.pdf/docx` | Elaborado |
-| Informe de pruebas (calidad/Q.A.) | `Informe_de_Pruebas_Requintu.pdf/docx` (v1.3) | Elaborado |
-| Manual de uso | `Manual_de_Uso_Requintu.pdf` | Elaborado |
+| Documentación técnica | `Documentacion_Tecnica_Requintu.pdf/docx` (v2.1) | Elaborado |
+| Informe de pruebas (calidad/Q.A.) | `Informe_de_Pruebas_Requintu.pdf/docx` (v1.4) | Elaborado |
+| Manual de uso | `Manual_de_Uso_Requintu.pdf/docx` (v1.2) | Elaborado |
 | Bitácoras de avance | Plantilla Anexo A | Llenar |
 | Repositorio con código y pruebas | GitHub | Operativo |
 | Producto funcional (web + Android) | Vercel + `Requintu-release.apk/.aab` | Operativo |
@@ -285,7 +285,7 @@ Con costos fijos de **$33.000/mes**, el punto de equilibrio se alcanza con aprox
 ### 9.1 Guía para la sustentación
 
 1. **Contexto (1 min):** problema que resuelve REQUINTU.
-2. **Demostración funcional (4–5 min):** registrar/ingresar, publicar un local, mapa, muro, denuncia, panel admin, cambio de idioma, instalación Android.
+2. **Demostración funcional (4–5 min):** registrar/ingresar, publicar un local, mapa, muro, denuncia, panel admin (asignar rol premium a un usuario), cambio de idioma, instalación Android.
 3. **Calidad (3–4 min):** mostrar las suites de pruebas (API + e2e) ejecutándose y casos del informe.
 4. **Gestión (2–3 min):** mercado, financiero, cronograma y resultados de aprendizaje.
 5. **Cierre (1 min):** conclusión y mejoras futuras (pagos en línea, geolocalización en tiempo real, app con más idiomas).
@@ -312,8 +312,8 @@ Con costos fijos de **$33.000/mes**, el punto de equilibrio se alcanza con aprox
 ## 11. Conclusiones
 
 1. REQUINTU demuestra que es posible dar visibilidad digital organizada al turismo local colombiano con tecnología de bajo costo y alto impacto social.
-2. La calidad del producto fue garantizada mediante un **proceso real de pruebas** (22 pruebas de API, 12 e2e, >30 casos funcionales y pruebas de seguridad), que constituye la aplicación directa de las competencias del programa de *Procesamiento de Pruebas de Software*.
-3. El modelo freemium y la estructura de costos basada en planes gratuitos hacen el proyecto **técnica y financieramente viable**.
+2. La calidad del producto fue garantizada mediante un **proceso real de pruebas** (34 pruebas de API, 13 e2e, 47 casos automatizados y pruebas de seguridad), que constituye la aplicación directa de las competencias del programa de *Procesamiento de Pruebas de Software*.
+3. El modelo freemium con el **perfil premium a US$2/mes** y la estructura de costos basada en planes gratuitos hacen el proyecto **técnica y financieramente viable**.
 4. El producto está **operativo** (web, API y APK Android) y sirve como evidencia tangible de la Etapa Práctica.
 
 ---
