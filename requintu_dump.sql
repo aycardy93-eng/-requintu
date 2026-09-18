@@ -126,6 +126,16 @@ CREATE TABLE `refresh_tokens` (
 KEY `idx_expira` (`expira_en`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+DROP TABLE IF EXISTS `subidas_imagenes`;
+CREATE TABLE `subidas_imagenes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_usuario` int NOT NULL,
+  `subida_en` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_subidas_usuario_fecha` (`id_usuario`,`subida_en`),
+  CONSTRAINT `fk_subidas_imagenes_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 DROP TABLE IF EXISTS `cola_emails`;
 CREATE TABLE `cola_emails` (
   `id` bigint NOT NULL AUTO_INCREMENT,

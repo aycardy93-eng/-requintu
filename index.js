@@ -166,6 +166,53 @@ const upload = multer({
   fileFilter
 });
 
+// Límites diarios de subidas por rol (protegen la cuenta de Cloudinary y la CPU del servidor).
+// Verificados por usuario, no por IP: un atacante no puede escalarlos rotando IPs.
+const LIMITES_UPLOADS_POR_ROL = {
+  turista: 10,
+  comerciante: 20,
+  comerciante_premium: 50,
+  alcaldia: 20,
+  admin: 100
+};
+
+async function verificarCuotaUploads(req, res, next) {
+  try {
+    const rol = (req.user?.rol || '').toUpperCase();
+    const limite = Number(process.env[`LIMITE_UPLOADS_${rol}`]) || LIMITES_UPLOADS_POR_ROL[req.user.rol] || 10;
+    const [rows] = await pool.query(
+      'SELECT COUNT(*) AS total FROM subidas_imagenes WHERE id_usuario = ? AND subida_en >= CURDATE()',
+      [req.user.id]
+    );
+    if (rows[0].total >= limite) {
+      return res.status(429).json({ error: 'Alcanzaste el límite diario de subidas de imágenes' });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// F03: solo se permiten imágenes propias de Requintu (Cloudinary o la carpeta local /uploads/).
+// Impide usar imagen_url como "tracking pixel" hacia servidores de terceros.
+function esUrlImagenPermitida(url) {
+  if (typeof url !== 'string' || !url.trim()) return true; // vacío: se almacena como null
+  const u = url.trim();
+  return u.startsWith('https://res.cloudinary.com/') || u.startsWith('/uploads/');
+}
+
+function primeraUrlImagenInvalida(...valores) {
+  for (const v of valores) {
+    if (Array.isArray(v)) {
+      const invalida = primeraUrlImagenInvalida(...v);
+      if (invalida !== null) return invalida;
+    } else if (!esUrlImagenPermitida(v)) {
+      return v;
+    }
+  }
+  return null;
+}
+
 // -----------------------------------------------------------------------------
 // Middlewares de Autenticación y Autorización
 // -----------------------------------------------------------------------------
@@ -276,6 +323,18 @@ export async function asegurarTablas() {
       KEY idx_locales_imagenes_local (id_local),
       CONSTRAINT fk_locales_imagenes_local FOREIGN KEY (id_local)
         REFERENCES locales(id_local) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Contador diario de subidas por usuario (protección contra abuso de costos de Cloudinary)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subidas_imagenes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      id_usuario INT NOT NULL,
+      subida_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_subidas_usuario_fecha (id_usuario, subida_en),
+      CONSTRAINT fk_subidas_imagenes_usuario FOREIGN KEY (id_usuario)
+        REFERENCES usuarios(id_usuario) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 }
@@ -615,7 +674,7 @@ function detectarTipoImagen(buffer) {
   return null;
 }
 
-app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res) => {
+app.post('/api/upload', authMiddleware, verificarCuotaUploads, upload.single('imagen'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Por favor selecciona un archivo' });
@@ -675,6 +734,12 @@ app.post('/api/upload', authMiddleware, upload.single('imagen'), async (req, res
     if (!result.ok) {
       throw new Error(data.error?.message || 'Error de Cloudinary');
     }
+
+    // Registra la subida para la cuota diaria por usuario.
+    // Se ejecuta antes de responder para que la cuota sea visible de inmediato.
+    try {
+      await pool.query('INSERT INTO subidas_imagenes (id_usuario) VALUES (?)', [req.user.id]);
+    } catch { /* la cuota es conservadora: no impide responder al usuario */ }
 
     res.json({ mensaje: 'Imagen subida correctamente', url: data.secure_url });
   } catch (err) {
@@ -740,6 +805,11 @@ app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_
 ]), async (req, res) => {
   try {
     const { nombre, descripcion, direccion, telefono, imagen_url, imagenes_url, id_categoria, id_municipio } = req.body;
+
+    const urlInvalida = primeraUrlImagenInvalida(imagen_url, imagenes_url);
+    if (urlInvalida !== null) {
+      return res.status(400).json({ error: 'La URL de la imagen no es válida. Solo se aceptan imágenes de Requintu.' });
+    }
 
     const limiteLocales = { comerciante: 1, alcaldia: 1, comerciante_premium: 5 }[req.user.rol];
     if (limiteLocales !== undefined) {
@@ -846,6 +916,11 @@ app.put('/api/locales/:id', authMiddleware, sinGroserias(['nombre', 'descripcion
     const campos = [];
     const params = [];
     const { nombre, descripcion, direccion, telefono, imagen_url, imagenes_url, id_categoria, id_municipio } = req.body;
+
+    const urlInvalida = primeraUrlImagenInvalida(imagen_url, imagenes_url);
+    if (urlInvalida !== null) {
+      return res.status(400).json({ error: 'La URL de la imagen no es válida. Solo se aceptan imágenes de Requintu.' });
+    }
 
     const nombreFinal = nombre !== undefined ? nombre : rows[0].nombre;
     const municipioFinal = id_municipio !== undefined ? id_municipio : rows[0].id_municipio;
@@ -1048,6 +1123,11 @@ app.post('/api/locales/:id/planes', authMiddleware, sinGroserias(['titulo', 'des
     const { id } = req.params;
     const { titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url } = req.body;
 
+    const urlInvalida = primeraUrlImagenInvalida(imagen_url);
+    if (urlInvalida !== null) {
+      return res.status(400).json({ error: 'La URL de la imagen no es válida. Solo se aceptan imágenes de Requintu.' });
+    }
+
     const autorizado = await verificarDuenoDelLocal(id, req.user.id, req.user.rol);
     if (!autorizado) {
       return res.status(403).json({ error: 'No tienes permiso para crear planes en este local' });
@@ -1074,6 +1154,11 @@ app.put('/api/planes/:id', authMiddleware, sinGroserias(['titulo', 'descripcion'
   try {
     const { id } = req.params;
     const { titulo, descripcion, precio, fecha_inicio, fecha_fin, imagen_url } = req.body;
+
+    const urlInvalida = primeraUrlImagenInvalida(imagen_url);
+    if (urlInvalida !== null) {
+      return res.status(400).json({ error: 'La URL de la imagen no es válida. Solo se aceptan imágenes de Requintu.' });
+    }
 
     if (!(await verificarPermisoPlan(id, req, res, 'editar'))) return;
 
@@ -1114,6 +1199,10 @@ app.delete('/api/planes/:id', authMiddleware, async (req, res) => {
 // -----------------------------------------------------------------------------
 const clientesSSE = new Set();
 
+// F01: límites de conexiones en tiempo real para evitar denegación de servicio.
+const MAX_CONEXIONES_SSE_POR_IP = 5;
+const MAX_CONEXIONES_SSE_GLOBAL = 500;
+
 function emitirEventoMuro(tipo, datos) {
   const payload = `event: ${tipo}\ndata: ${JSON.stringify(datos)}\n\n`;
   for (const cliente of clientesSSE) {
@@ -1126,7 +1215,16 @@ function emitirEventoMuro(tipo, datos) {
   }
 }
 
-app.get('/api/eventos', (req, res) => {
+app.get('/api/eventos', authMiddleware, (req, res) => {
+  const ip = req.ip;
+  const conexionesPorIP = [...clientesSSE].filter((c) => c.ip === ip).length;
+  if (conexionesPorIP >= MAX_CONEXIONES_SSE_POR_IP) {
+    return res.status(429).json({ error: 'Demasiadas conexiones en tiempo real desde esta IP' });
+  }
+  if (clientesSSE.size >= MAX_CONEXIONES_SSE_GLOBAL) {
+    return res.status(503).json({ error: 'El servicio en tiempo real está saturado, inténtalo de nuevo' });
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -1134,7 +1232,7 @@ app.get('/api/eventos', (req, res) => {
   res.flushHeaders();
   res.write(': conectado\n\n');
 
-  const cliente = { res };
+  const cliente = { res, ip };
   clientesSSE.add(cliente);
 
   const latido = setInterval(() => {
@@ -1178,6 +1276,11 @@ app.post('/api/publicaciones', authMiddleware, checkRole(['turista', 'admin']), 
   try {
     const { contenido, imagen_url } = req.body;
 
+    const urlInvalida = primeraUrlImagenInvalida(imagen_url);
+    if (urlInvalida !== null) {
+      return res.status(400).json({ error: 'La URL de la imagen no es válida. Solo se aceptan imágenes de Requintu.' });
+    }
+
     if (!contenido || !contenido.trim()) {
       return res.status(400).json({ error: 'El contenido es obligatorio' });
     }
@@ -1200,6 +1303,11 @@ app.put('/api/publicaciones/:id', authMiddleware, sinGroserias(['contenido']), v
   try {
     const { id } = req.params;
     const { contenido, imagen_url } = req.body;
+
+    const urlInvalida = primeraUrlImagenInvalida(imagen_url);
+    if (urlInvalida !== null) {
+      return res.status(400).json({ error: 'La URL de la imagen no es válida. Solo se aceptan imágenes de Requintu.' });
+    }
 
     if (!(await verificarPermisoPublicacion(id, req, res, 'editar'))) return;
 

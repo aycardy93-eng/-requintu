@@ -8,12 +8,70 @@ import BACKEND_ORIGIN, { API_URL } from '../config';
 
 // Las imágenes subidas se guardan como ruta relativa (/uploads/archivo.jpg).
 // El frontend corre en otro puerto (5173), así que hay que completar la URL
-// con el origen del backend para que el navegador la encuentre.
+// con el origen del backend para que la encuentre.
+// F03: solo se permiten imágenes propias de Requintu (Cloudinary o /uploads/).
 const resolverImagenUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${BACKEND_ORIGIN}${url}`;
+  if (url.startsWith('https://res.cloudinary.com/')) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return null; // origen externo no aceptado
+return `${BACKEND_ORIGIN}${url}`;
 };
+
+// Suscripción SSE autenticada via fetch: el navegador nativo EventSource no
+// soporta el header Authorization, así que consumimos el stream con fetch.
+function suscribirseSSE(url, token, manejadores) {
+  let activo = true;
+  let abortar = null;
+  let temporizador = null;
+
+  const conectar = async () => {
+    if (!activo) return;
+    const controlador = new AbortController();
+    abortar = controlador;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controlador.signal,
+      });
+      if (!res.ok || !res.body) throw new Error(`SSE ${res.status}`);
+      const lector = res.body.getReader();
+      const decodificador = new TextDecoder();
+      let buffer = '';
+      while (activo) {
+        const { done, value } = await lector.read();
+        if (done) throw new Error('SSE cerrado');
+        buffer += decodificador.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf('\n\n')) !== -1) {
+          const bloque = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          let tipo = 'mensaje';
+          let dato = '';
+          for (const linea of bloque.split('\n')) {
+            if (linea.startsWith('event:')) tipo = linea.slice(6).trim();
+            else if (linea.startsWith('data:')) dato = linea.slice(5).trim();
+          }
+          if (dato && manejadores[tipo]) {
+            try { manejadores[tipo](dato); } catch { /* se ignora */ }
+          }
+        }
+      }
+    } catch {
+      if (!activo) return;
+      temporizador = setTimeout(conectar, 3000);
+    }
+  };
+
+  conectar();
+
+  return {
+    cerrar() {
+      activo = false;
+      if (abortar) abortar.abort();
+      if (temporizador) clearTimeout(temporizador);
+    },
+  };
+}
 
 const estiloTexto = {
   width: '100%',
@@ -106,23 +164,25 @@ function Publicaciones() {
     cargarPublicaciones();
   }, []);
 
-  // Se suscribe a los avisos del muro. Cuando alguien publica, avisa en pantalla
-  // para que el usuario vea las novedades sin recargar. Sus propias publicaciones
-  // no generan el aviso (ya se recarga la lista automáticamente al crearlas).
+  // F01: Se suscribe a los avisos del muro via fetch con token de autorización.
+  // Cuando alguien publica, avisa en pantalla para que el usuario vea las
+  // novedades sin recargar. Sus propias publicaciones no generan el aviso
+  // (ya se recarga la lista automáticamente al crearlas).
   useEffect(() => {
-    const es = new EventSource(`${BACKEND_ORIGIN}/api/eventos`);
-    es.onerror = () => { /* EventSource se reconecta solo */ };
-    es.addEventListener('nueva', (e) => {
-      try {
-        const evento = JSON.parse(e.data);
-        if (evento.usuario_id && usuarioActual && evento.usuario_id === usuarioActual.id) return;
-        setNovedades((n) => n + 1);
-      } catch { /* evento malformado: se ignora */ }
+    if (!token) return undefined;
+    const suscripcion = suscribirseSSE(`${BACKEND_ORIGIN}/api/eventos`, token, {
+      nueva: (dato) => {
+        try {
+          const evento = JSON.parse(dato);
+          if (evento.usuario_id && usuarioActual && evento.usuario_id === usuarioActual.id) return;
+          setNovedades((n) => n + 1);
+        } catch { /* evento malformado: se ignora */ }
+      },
+      editada: () => cargarPublicaciones(),
+      borrada: () => cargarPublicaciones(),
     });
-    es.addEventListener('editada', () => cargarPublicaciones());
-    es.addEventListener('borrada', () => cargarPublicaciones());
-    return () => es.close();
-  }, [usuarioActual, token]);
+    return () => suscripcion.cerrar();
+  }, [token, usuarioActual]);
 
   const verNovedades = () => {
     setNovedades(0);

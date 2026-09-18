@@ -21,6 +21,12 @@ const registroUnico = () => {
   return email;
 };
 
+// JPEG real de 2x2 px (generado, 270 bytes), usado por los tests de upload.
+const JPEG_REAL = Buffer.from(
+  '/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABgj/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABykX//Z',
+  'base64'
+);
+
 before(async () => {
   await asegurarTablas();
   await new Promise((resolve) => {
@@ -312,6 +318,90 @@ test('el local de la alcaldia aparece primero en la busqueda de su municipio', a
   );
 });
 
+test('eventos requiere autenticacion (F01)', async () => {
+  const sinToken = await fetch(`${base}/api/eventos`);
+  assert.equal(sinToken.status, 401);
+
+  const usuario = await registrarUsuario();
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+
+  const controlador = new AbortController();
+  const res = await fetch(`${base}/api/eventos`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: controlador.signal
+  });
+  try {
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') || '', /text\/event-stream/);
+  } finally {
+    controlador.abort();
+  }
+});
+
+test('publicacion con imagen_url de dominio externo es rechazada (F03)', async () => {
+  const usuario = await registrarUsuario();
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+  const crear = await fetch(`${base}/api/publicaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ contenido: '[test] imagen externa', imagen_url: 'https://evil.example/track.png' })
+  });
+  assert.equal(crear.status, 400);
+});
+
+test('publicacion acepta imagen de Cloudinary (F03)', async () => {
+  const usuario = await registrarUsuario();
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+  const crear = await fetch(`${base}/api/publicaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ contenido: '[test] imagen cloudinary', imagen_url: 'https://res.cloudinary.com/requintu/foto.jpg' })
+  });
+  assert.equal(crear.status, 201);
+  const { id } = await crear.json();
+  publicacionesTest.push(id);
+});
+
+test('local con imagen_url de dominio externo es rechazado (F03)', async () => {
+  const comerciante = await registrarUsuario({ rol: 'comerciante' });
+  const token = (await (await login(comerciante.email, comerciante.password)).json()).token;
+  const [[{ id_municipio }]] = await pool.query('SELECT id_municipio FROM municipios ORDER BY id_municipio LIMIT 1');
+  const crear = await fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre: `Local ${Date.now()}`, direccion: 'Calle 1', id_municipio, imagen_url: 'https://evil.example/x.png' })
+  });
+  assert.equal(crear.status, 400);
+});
+
+test('upload limita la cantidad diaria por usuario (F02)', async () => {
+  const usuario = await registrarUsuario();
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+
+  process.env.LIMITE_UPLOADS_TURISTA = '1';
+  try {
+    const fd1 = new FormData();
+    fd1.append('imagen', new Blob([JPEG_REAL], { type: 'image/jpeg' }), 'uno.jpg');
+    const r1 = await fetch(`${base}/api/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd1
+    });
+    assert.equal(r1.status, 200);
+
+    const fd2 = new FormData();
+    fd2.append('imagen', new Blob([JPEG_REAL], { type: 'image/jpeg' }), 'dos.jpg');
+    const r2 = await fetch(`${base}/api/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd2
+    });
+    assert.equal(r2.status, 429);
+  } finally {
+    delete process.env.LIMITE_UPLOADS_TURISTA;
+  }
+});
+
 test('ciclo completo de publicacion: crear y eliminar', async () => {
   const usuario = await registrarUsuario();
   const { token } = await (await login(usuario.email, usuario.password)).json();
@@ -387,10 +477,7 @@ test('upload acepta un JPEG genuino', async () => {
   const { token } = await (await login(usuario.email, usuario.password)).json();
 
   // JPEG real de 2x2 px (generado, 270 bytes).
-  const jpegReal = Buffer.from(
-    '/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABgj/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABykX//Z',
-    'base64'
-  );
+  const jpegReal = JPEG_REAL;
 
   const fd = new FormData();
   fd.append('imagen', new Blob([jpegReal], { type: 'image/jpeg' }), 'real.jpg');

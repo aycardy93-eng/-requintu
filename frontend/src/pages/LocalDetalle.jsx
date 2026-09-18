@@ -8,7 +8,8 @@ import BACKEND_ORIGIN, { API_URL } from '../config';
 
 const resolverImagenUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('https://res.cloudinary.com/')) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return null; // origen externo no aceptado
   return `${BACKEND_ORIGIN}${url}`;
 };
 

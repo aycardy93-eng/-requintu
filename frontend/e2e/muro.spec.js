@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emailUnico, registrarApi, crearPublicacionApi, borrarUsuarioApi } from './utils.js';
+import { emailUnico, registrarApi, loginViaApi, crearPublicacionApi, borrarUsuarioApi } from './utils.js';
 
 test('el muro avisa en tiempo real cuando llega una publicación nueva', async ({ page }) => {
   const autor = emailUnico('autor');
@@ -9,9 +9,10 @@ test('el muro avisa en tiempo real cuando llega una publicación nueva', async (
   await registrarApi(page, { nombre: 'Autor RT', email: autor, password });
   await registrarApi(page, { nombre: 'Oyente RT', email: oyente, password });
 
-  // El "oyente" abre el muro y queda suscrito a los avisos
+  // El "oyente" inicia sesión y abre el muro: queda suscrito a los avisos (SSE)
+  await loginViaApi(page, oyente, password);
   await page.goto('/publicaciones');
-  await expect(page.getByText(/para crear una publicación/)).toBeVisible();
+  await expect(page.getByText(/Hola, Oyente RT/)).toBeVisible();
 
   // El "autor" publica (otra sesión) y el muro del oyente debe avisarlo
   await crearPublicacionApi(autor, password, `Aviso en tiempo real ${Date.now()}`);
