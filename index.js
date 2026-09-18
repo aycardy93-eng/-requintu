@@ -793,6 +793,155 @@ app.get('/api/locales', async (req, res) => {
   }
 });
 
+// -----------------------------------------------------------------------------
+// Asistente por chat (basado en reglas): recomienda locales destacados
+// -----------------------------------------------------------------------------
+const normalizarTexto = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+app.post('/api/chat', validar([
+  body('mensaje').trim().isLength({ min: 1, max: 500 }).withMessage('Escribe un mensaje para el asistente'),
+  body('lang').optional().isIn(['es', 'en']).withMessage('Idioma no soportado')
+]), async (req, res) => {
+  try {
+    const { lang } = req.body;
+    const en = lang === 'en';
+    const mensaje = normalizarTexto(req.body.mensaje);
+    const tokens = new Set(mensaje.split(/[^a-z0-9]+/).filter(Boolean));
+    const tiene = (...palabras) => palabras.some((p) => tokens.has(p));
+
+    const [categorias] = await pool.query('SELECT id_categoria, nombre FROM categorias');
+    const [municipios] = await pool.query('SELECT id_municipio, nombre, departamento FROM municipios');
+
+    // Busca la entidad (municipio, departamento o categoría) más específica mencionada.
+    const mejorCoincidencia = (entradas, clave) => {
+      let mejor = null;
+      for (const entrada of entradas) {
+        const nombreCand = normalizarTexto(entrada[clave]);
+        if (nombreCand.length >= 3 && mensaje.includes(nombreCand) && (!mejor || nombreCand.length > mejor.normalizado.length)) {
+          mejor = { ...entrada, normalizado: nombreCand };
+        }
+      }
+      return mejor;
+    };
+
+    const municipio = mejorCoincidencia(municipios, 'nombre');
+    const departamentos = [...new Set(municipios.map((m) => m.departamento).filter(Boolean))].map((d) => ({ departamento: d }));
+    const departamento = mejorCoincidencia(departamentos, 'departamento');
+    const categoria = mejorCoincidencia(categorias, 'nombre');
+
+    const esPeticion = !!municipio || !!departamento || !!categoria
+      || /recomien|sugier|mejores|mejor|top|destacad|comer|probar|visitar|busco|busca|encuentr|donde|quiero|necesito/.test(mensaje);
+    const esSaludo = tiene('hola', 'hello', 'hi', 'hey')
+      || (tiene('buenos', 'buenas') && tiene('dias', 'tardes', 'noches', 'dia'));
+    const esAgradecimiento = tiene('gracias', 'thanks', 'thank')
+      || (tokens.size <= 2 && tiene('ok', 'vale', 'listo', 'perfecto', 'genial'));
+
+    const sugerencias = en
+      ? ['recommend the best restaurants', 'what do you recommend in Bucaramanga', 'show featured places']
+      : ['recomiéndame los mejores restaurantes', '¿qué me recomiendas en Bucaramanga?', 'mostrar sitios destacados'];
+
+    if (esSaludo && !esPeticion) {
+      return res.json({
+        respuesta: en
+          ? 'Hello! I am Requintu, your travel assistant. I can recommend featured places by city, department or category.'
+          : '¡Hola! Soy Requintu, tu asistente turístico. Puedo recomendarte locales destacados por ciudad, departamento o categoría.',
+        locales: [],
+        sugerencias,
+      });
+    }
+
+    if (esAgradecimiento && !esPeticion) {
+      return res.json({
+        respuesta: en
+          ? "You're welcome! If you need anything else, I'm here."
+          : '¡Con gusto! Si necesitas algo más, aquí estoy.',
+        locales: [],
+        sugerencias,
+      });
+    }
+
+    if (!esPeticion) {
+      return res.json({
+        respuesta: en
+          ? 'I can help you discover recommended places. You can ask me something like:'
+          : 'Puedo ayudarte a descubrir locales recomendados. Prueba pedirme algo como:',
+        locales: [],
+        sugerencias,
+      });
+    }
+
+    let query = `
+      SELECT l.*, c.nombre AS categoria_nombre, m.nombre AS municipio_nombre, m.departamento,
+        COALESCE(AVG(r.puntuacion), 0) AS calificacion_promedio,
+        COUNT(r.id_resena) AS total_calificaciones
+      FROM locales l
+      LEFT JOIN categorias c ON l.id_categoria = c.id_categoria
+      LEFT JOIN municipios m ON l.id_municipio = m.id_municipio
+      LEFT JOIN calificaciones r ON l.id_local = r.id_local
+      WHERE 1=1`;
+    const params = [];
+
+    if (municipio) {
+      query += ' AND l.id_municipio = ?';
+      params.push(municipio.id_municipio);
+    } else if (departamento) {
+      query += ' AND m.departamento = ?';
+      params.push(departamento.departamento);
+    }
+    if (categoria) {
+      query += ' AND l.id_categoria = ?';
+      params.push(categoria.id_categoria);
+    }
+    query += ' GROUP BY l.id_local ORDER BY l.destacado DESC, calificacion_promedio DESC, l.id_local ASC LIMIT 5';
+
+    const [filas] = await pool.query(query, params);
+
+    const zona = municipio ? municipio.nombre : departamento ? departamento.departamento : null;
+    let respuesta;
+    if (filas.length === 0) {
+      respuesta = en
+        ? (zona ? `I could not find places in ${zona} yet. Try another city!` : 'I could not find places matching your request.')
+        : (zona ? `Aún no encontré locales en ${zona}. ¡Prueba con otra ciudad!` : 'No encontré locales que coincidan con tu búsqueda.');
+    } else if (zona && categoria) {
+      respuesta = en
+        ? `My recommendations for ${categoria.nombre} in ${zona}:`
+        : `Mis recomendaciones de ${categoria.nombre} en ${zona}:`;
+    } else if (zona) {
+      respuesta = en
+        ? `My recommendations in ${zona}:`
+        : `Mis recomendaciones en ${zona}:`;
+    } else if (categoria) {
+      respuesta = en
+        ? `My recommendations for ${categoria.nombre}:`
+        : `Mis recomendaciones de ${categoria.nombre}:`;
+    } else {
+      respuesta = en
+        ? 'These are the most recommended places in Requintu:'
+        : 'Estos son los sitios más recomendados en Requintu:';
+    }
+
+    res.json({
+      respuesta,
+      locales: filas.map((l) => ({
+        id_local: l.id_local,
+        nombre: l.nombre,
+        direccion: l.direccion,
+        imagen_url: l.imagen_url,
+        categoria_nombre: l.categoria_nombre,
+        municipio_nombre: l.municipio_nombre,
+        departamento: l.departamento,
+        calificacion_promedio: Math.round(Number(l.calificacion_promedio) * 10) / 10,
+        total_calificaciones: Number(l.total_calificaciones),
+        destacado: l.destacado === 1 || l.destacado === true,
+      })),
+      sugerencias,
+    });
+  } catch (err) {
+    console.error('Error en el asistente:', err.message);
+    res.status(500).json({ error: 'Error al procesar la consulta' });
+  }
+});
+
 app.post('/api/locales', authMiddleware, checkRole(['comerciante', 'comerciante_premium', 'alcaldia', 'admin']), sinGroserias(['nombre', 'descripcion', 'direccion']), validar([
   body('nombre').trim().isLength({ min: 2, max: 100 }).withMessage('El nombre del local debe tener entre 2 y 100 caracteres'),
   body('descripcion').optional({ values: 'falsy' }).trim().isLength({ max: 1000 }).withMessage('La descripción no puede exceder 1000 caracteres'),

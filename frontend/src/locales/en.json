@@ -336,6 +336,18 @@
     "novedades_other": "{{count}} new posts on the wall",
     "verAhora": "See now"
   },
+  "chat": {
+    "titulo": "Requintu Assistant",
+    "bienvenida": "Hello! I am the Requintu assistant. I can recommend featured places by city, department or category. Try asking me:",
+    "ejemplos": ["recommend the best restaurants", "what do you recommend in Bucaramanga", "show featured places"],
+    "placeholder": "Type your message...",
+    "enviar": "Send",
+    "abrir": "Open assistant",
+    "cerrar": "Close assistant",
+    "escribiendo": "Typing...",
+    "error": "I could not process your message. Try again.",
+    "verLocal": "View place"
+  },
   "admin": {
     "resumen": "Summary",
     "usuarios": "Users",

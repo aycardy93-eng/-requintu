@@ -336,6 +336,18 @@
     "novedades_other": "Hay {{count}} publicaciones nuevas en el muro",
     "verAhora": "Ver ahora"
   },
+  "chat": {
+    "titulo": "Asistente Requintu",
+    "bienvenida": "¡Hola! Soy el asistente de Requintu. Puedo recomendarte locales destacados por ciudad, departamento o categoría. Prueba preguntándome:",
+    "ejemplos": ["recomiéndame los mejores restaurantes", "¿qué me recomiendas en Bucaramanga?", "mostrar sitios destacados"],
+    "placeholder": "Escribe tu mensaje...",
+    "enviar": "Enviar",
+    "abrir": "Abrir asistente",
+    "cerrar": "Cerrar asistente",
+    "escribiendo": "Escribiendo...",
+    "error": "No pude procesar tu mensaje. Inténtalo de nuevo.",
+    "verLocal": "Ver local"
+  },
   "admin": {
     "resumen": "Resumen",
     "usuarios": "Usuarios",

@@ -686,3 +686,91 @@ test('flujo completo de refresh token con rotacion y revocacion', async () => {
   });
   assert.equal(refreshTrasLogout.status, 401, 'tras el logout el refresh debe estar revocado');
 });
+
+test('asistente responde al saludo sin consultar locales', async () => {
+  const res = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mensaje: 'hola' })
+  });
+  assert.equal(res.status, 200);
+  const cuerpo = await res.json();
+  assert.match(cuerpo.respuesta, /Hola|Hello/i);
+  assert.deepEqual(cuerpo.locales, []);
+  assert.ok(Array.isArray(cuerpo.sugerencias) && cuerpo.sugerencias.length > 0);
+});
+
+test('asistente rechaza mensaje vacio', async () => {
+  const res = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mensaje: '   ' })
+  });
+  assert.equal(res.status, 400);
+});
+
+test('asistente responde en ingles cuando se le pide', async () => {
+  const res = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mensaje: 'hola', lang: 'en' })
+  });
+  assert.equal(res.status, 200);
+  const cuerpo = await res.json();
+  assert.match(cuerpo.respuesta, /Hello/i);
+});
+
+test('asistente recomienda locales de un municipio, destacados primero', async () => {
+  const usuario = await registrarUsuario();
+  await pool.query("UPDATE usuarios SET rol = 'comerciante_premium' WHERE email = ?", [usuario.email]);
+  const { token } = await (await login(usuario.email, usuario.password)).json();
+
+  const [[{ id_municipio, nombre }]] = await pool.query(
+    'SELECT m.id_municipio, m.nombre FROM municipios m LEFT JOIN locales l ON m.id_municipio = l.id_municipio GROUP BY m.id_municipio, m.nombre HAVING COUNT(l.id_local) = 0 ORDER BY m.id_municipio LIMIT 1'
+  );
+
+  const crear = (localNombre) => fetch(`${base}/api/locales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre: localNombre, descripcion: 'local del asistente', direccion: 'Calle del asistente', id_municipio })
+  });
+
+  const destacado = await crear('Local Destacado Asistente');
+  assert.equal(destacado.status, 201);
+  const { id: idDestacado } = await destacado.json();
+  localesTest.push(idDestacado);
+  await pool.query('UPDATE locales SET destacado = 1 WHERE id_local = ?', [idDestacado]);
+
+  const normal = await crear('Local Normal Asistente');
+  assert.equal(normal.status, 201);
+  const { id: idNormal } = await normal.json();
+  localesTest.push(idNormal);
+
+  const res = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mensaje: `recomiéndame locales en ${nombre}` })
+  });
+  assert.equal(res.status, 200);
+  const cuerpo = await res.json();
+  assert.ok(cuerpo.respuesta.includes(nombre), 'la respuesta menciona el municipio');
+  assert.ok(Array.isArray(cuerpo.locales) && cuerpo.locales.length >= 2);
+  for (const l of cuerpo.locales) assert.equal(l.municipio_nombre, nombre);
+
+  const idxDestacado = cuerpo.locales.findIndex((l) => l.nombre === 'Local Destacado Asistente');
+  const idxNormal = cuerpo.locales.findIndex((l) => l.nombre === 'Local Normal Asistente');
+  assert.ok(idxDestacado !== -1 && idxNormal !== -1);
+  assert.ok(idxDestacado < idxNormal, 'los destacados aparecen antes que los normales');
+});
+
+test('asistente filtra por categoria mencionada', async () => {
+  const [[{ nombre: categoria }]] = await pool.query('SELECT nombre FROM categorias ORDER BY id_categoria LIMIT 1');
+  const res = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mensaje: `mejores ${categoria}` })
+  });
+  assert.equal(res.status, 200);
+  const cuerpo = await res.json();
+  for (const l of cuerpo.locales) assert.equal(l.categoria_nombre, categoria);
+});

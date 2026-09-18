@@ -19,6 +19,7 @@ import Admin from './pages/Admin';
 import MapaColombia from './pages/MapaColombia';
 import PoliticaPrivacidad from './pages/PoliticaPrivacidad';
 import InstallBanner from './components/InstallBanner';
+import ChatBot from './components/ChatBot';
 import Footer from './components/Footer';
 import { Link } from 'react-router-dom';
 
@@ -143,6 +144,8 @@ function App() {
       </Routes>
 
       <Footer />
+
+      <ChatBot />
     </>
   );
 }
